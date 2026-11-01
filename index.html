@@ -255,6 +255,45 @@
       footer.copy a{color:var(--ink-2);text-decoration:none;border-bottom:1px dotted var(--ink-2)}
       .privacy-line{margin-top:34px;font-size:12px;color:var(--ink-2);text-align:center}
 
+
+      /* ---------- badge / fade / title styles (v2) ---------- */
+      .phone .pv-badge{
+        position:absolute;top:14px;right:12px;z-index:5;display:none;
+        font-family:var(--font-head);font-weight:800;font-size:11.5px;letter-spacing:.06em;
+        padding:4px 11px 5px;border-radius:6px;border:1.5px solid rgba(255,255,255,.92);
+        box-shadow:0 3px 10px rgba(0,0,0,.5);transform:rotate(3deg);pointer-events:none;white-space:nowrap;
+      }
+      .phone .txt-layer.has-badge{padding-top:46px}
+      .phone .pv-title-line{word-break:break-word;line-height:1.32;font-weight:900}
+      .phone .pv-title-line:empty{display:none}
+      .badge-options{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+      .badge-opt{
+        font-family:var(--font-head);font-weight:800;font-size:13.5px;cursor:pointer;
+        padding:7px 13px;border-radius:999px;border:2px solid var(--ink);background:#fff;color:var(--ink);
+        box-shadow:2px 2px 0 rgba(33,29,26,.7);
+      }
+      .badge-opt.on{outline:3px solid var(--red-soft);outline-offset:1px;transform:rotate(-1deg)}
+      .badge-opt[data-badge="new"].on{background:#e60012;color:#fff;border-color:#b9000e}
+      .badge-opt[data-badge="recommend"].on{background:#e8b93e;color:#211d1a;border-color:#a87f14}
+      .badge-opt[data-badge="archive"].on{background:#1e3a5f;color:#fff;border-color:#12263f}
+      .badge-opt[data-badge="kura"].on{background:#8b5a2b;color:#fff;border-color:#5f3c1a}
+      .badge-opt[data-badge="popular"].on{background:#d6336c;color:#fff;border-color:#9e2350}
+      .title-block{border:1.5px solid var(--line);border-radius:12px;padding:4px 14px 14px;margin-top:16px;background:#fff}
+      .title-block .f-label{margin-top:12px}
+      .style-controls{margin-top:10px;border-top:1.5px dashed var(--line);padding-top:10px;display:grid;gap:9px}
+      .ctl-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+      .ctl-label{font-size:12.5px;font-weight:700;color:var(--ink-2);min-width:44px}
+      .ctl-row input[type="range"]{flex:1;min-width:110px;height:28px}
+      .size-val{font-family:var(--font-mono);font-size:12px;font-weight:600;min-width:42px}
+      .color-picker{width:46px;height:34px;padding:2px;border:2px solid var(--ink);border-radius:8px;background:#fff;cursor:pointer;flex-shrink:0}
+      .swatches{display:flex;gap:6px;flex-wrap:wrap}
+      .swatch{width:26px;height:26px;border-radius:50%;border:2px solid rgba(33,29,26,.55);cursor:pointer;padding:0;flex-shrink:0}
+      .swatch:active{transform:scale(.92)}
+      .fade-note{font-size:12.5px;color:var(--ink-2);margin:6px 0 0}
+      @media (max-width:380px){
+        .url-row{flex-direction:column}
+        .url-row .btn{width:100%}
+      }
       @media (max-width:380px){
         .url-row{flex-direction:column}
         .url-row .btn{width:100%}
@@ -320,8 +359,9 @@
               <video class="bg" id="bgVideo" muted playsinline loop preload="metadata"></video>
               <video class="fg" id="fgVideo" playsinline preload="metadata"></video>
               <div class="empty-msg" id="emptyMsg">動画を読み込むと<br />ここにプレビューが出ます</div>
-              <div class="txt-layer">
-                <div class="pv-title" id="pvTitle"></div>
+              <div class="pv-badge" id="pvBadge"></div>
+              <div class="txt-layer" id="txtLayer">
+                <div class="pv-title"><div class="pv-title-line" id="pvTitle1"></div><div class="pv-title-line" id="pvTitle2"></div></div>
                 <div class="pv-catch" id="pvCatch"></div>
               </div>
               <div class="safe-note">BOTTOM = SHORTS UI AREA</div>
@@ -361,6 +401,14 @@
             <button type="button" class="chip" data-dur="60" disabled>60秒</button>
           </div>
           <input type="range" id="durRange" min="15" max="60" step="1" value="30" disabled aria-label="長さ（秒）" />
+
+          <label class="f-label">フェード（映像＋音声）</label>
+          <div class="dur-chips" role="group" aria-label="フェードの長さ">
+            <button type="button" class="chip fade-chip" data-fade="0.3">0.3秒</button>
+            <button type="button" class="chip fade-chip on" data-fade="0.5">0.5秒</button>
+            <button type="button" class="chip fade-chip" data-fade="1">1秒</button>
+          </div>
+          <p class="fade-note">切り出しの最初と最後に、映像と音声の両方へフェードイン／フェードアウトが付きます。歌唱の途中からでも、ふわりと入り、ふわりと終わります。</p>
         </div>
       </section>
 
@@ -370,12 +418,67 @@
       <section class="step locked" id="step3">
         <span class="step-tag"><span class="no">工程 03</span>文字をのせる</span>
         <h2 class="step-name">タイトルとキャッチコピー</h2>
-        <p class="step-desc">どちらも上部のぼかし帯に表示されます。入力すると工程02のプレビューにすぐ反映されます。</p>
+        <p class="step-desc">タイトルは2行に分けて、各行ごとに大きさと色を変えられます。バッジも含め、すべて上部のぼかし帯に表示され、入力すると工程02のプレビューにすぐ反映されます。</p>
 
         <div class="lockable">
-          <label class="f-label" for="titleInput">動画タイトル</label>
-          <input type="text" id="titleInput" maxlength="100" placeholder="例：Beautiful Things を3声アカペラで" autocomplete="off" />
-          <div class="char-count"><span id="titleCount">0</span> / 100</div>
+          <label class="f-label">バッジ</label>
+          <div class="badge-options" role="group" aria-label="バッジ選択">
+            <button type="button" class="badge-opt on" data-badge="none">なし</button>
+            <button type="button" class="badge-opt" data-badge="new">新着</button>
+            <button type="button" class="badge-opt" data-badge="recommend">おすすめ</button>
+            <button type="button" class="badge-opt" data-badge="archive">名曲アーカイブ</button>
+            <button type="button" class="badge-opt" data-badge="kura">蔵出し</button>
+            <button type="button" class="badge-opt" data-badge="popular">人気曲</button>
+          </div>
+          <p class="hint">バッジは上部帯の右上に、小さなスタンプのように付きます。アーカイブ系の古い動画には「名曲アーカイブ」「蔵出し」がおすすめです。</p>
+
+          <div class="title-block">
+            <label class="f-label" for="title1">タイトル（1行目）</label>
+            <input type="text" id="title1" maxlength="50" placeholder="例：Beautiful Things" autocomplete="off" />
+            <div class="char-count"><span id="title1Count">0</span> / 50</div>
+            <div class="style-controls">
+              <div class="ctl-row">
+                <span class="ctl-label">大きさ</span>
+                <input type="range" id="title1Size" min="70" max="140" step="5" value="100" aria-label="タイトル1行目の文字の大きさ" />
+                <span class="size-val" id="title1SizeVal">100%</span>
+              </div>
+              <div class="ctl-row">
+                <span class="ctl-label">色</span>
+                <input type="color" id="title1Color" value="#ffffff" class="color-picker" aria-label="タイトル1行目の文字色" />
+                <div class="swatches" data-for="title1Color">
+                  <button type="button" class="swatch" data-color="#ffffff" style="background:#ffffff" aria-label="白"></button>
+                  <button type="button" class="swatch" data-color="#ffe600" style="background:#ffe600" aria-label="黄"></button>
+                  <button type="button" class="swatch" data-color="#e60012" style="background:#e60012" aria-label="赤"></button>
+                  <button type="button" class="swatch" data-color="#111111" style="background:#111111" aria-label="黒"></button>
+                  <button type="button" class="swatch" data-color="#7dd3fc" style="background:#7dd3fc" aria-label="水色"></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="title-block">
+            <label class="f-label" for="title2">タイトル（2行目）</label>
+            <input type="text" id="title2" maxlength="50" placeholder="例：3声アカペラで歌ってみた" autocomplete="off" />
+            <div class="char-count"><span id="title2Count">0</span> / 50</div>
+            <div class="style-controls">
+              <div class="ctl-row">
+                <span class="ctl-label">大きさ</span>
+                <input type="range" id="title2Size" min="70" max="140" step="5" value="85" aria-label="タイトル2行目の文字の大きさ" />
+                <span class="size-val" id="title2SizeVal">85%</span>
+              </div>
+              <div class="ctl-row">
+                <span class="ctl-label">色</span>
+                <input type="color" id="title2Color" value="#ffe600" class="color-picker" aria-label="タイトル2行目の文字色" />
+                <div class="swatches" data-for="title2Color">
+                  <button type="button" class="swatch" data-color="#ffffff" style="background:#ffffff" aria-label="白"></button>
+                  <button type="button" class="swatch" data-color="#ffe600" style="background:#ffe600" aria-label="黄"></button>
+                  <button type="button" class="swatch" data-color="#e60012" style="background:#e60012" aria-label="赤"></button>
+                  <button type="button" class="swatch" data-color="#111111" style="background:#111111" aria-label="黒"></button>
+                  <button type="button" class="swatch" data-color="#7dd3fc" style="background:#7dd3fc" aria-label="水色"></button>
+                </div>
+              </div>
+            </div>
+          </div>
 
           <label class="f-label" for="catch1">キャッチコピー（1行目）</label>
           <input type="text" id="catch1" maxlength="24" placeholder="例：鳥肌ハモリ、聴いてください" autocomplete="off" />
@@ -394,11 +497,11 @@
       <section class="step locked" id="step4">
         <span class="step-tag"><span class="no">工程 04</span>仕上げる</span>
         <h2 class="step-name">ショート動画を生成</h2>
-        <p class="step-desc">上下にぼかし帯を付けた9:16動画を生成します。生成が終わったら「デバイスに保存」で端末に書き出してください。</p>
+        <p class="step-desc">上下にぼかし帯を付け、工程02で選んだフェード（映像＋音声）を付けた9:16動画を生成します。生成が終わったら「デバイスに保存」で端末に書き出してください。</p>
 
         <div class="lockable">
           <button type="button" class="btn red big" id="generateBtn" disabled>✂ 9:16ショートを書き出す</button>
-          <div class="spec-line">OUTPUT · 1080 × 1920 · MP4 (H.264 + AAC)</div>
+          <div class="spec-line">OUTPUT · 1080 × 1920 · MP4 (H.264 + AAC) · FADE IN/OUT</div>
 
           <div class="progress-box" id="progressBox">
             <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
@@ -455,9 +558,9 @@
           inTc=$("inTc"), outTc=$("outTc"), lenTc=$("lenTc"), tlRegion=$("tlRegion"), tlPlayhead=$("tlPlayhead"), tlLabel=$("tlLabel"),
           startRange=$("startRange"), startTcLabel=$("startTcLabel"),
           nudgeBack=$("nudgeBack"), nudgeFwd=$("nudgeFwd"), setFromPlayhead=$("setFromPlayhead"),
-          durRange=$("durRange"), durChips=Array.prototype.slice.call(document.querySelectorAll(".chip")),
-          titleInput=$("titleInput"), catch1=$("catch1"), catch2=$("catch2"),
-          pvTitle=$("pvTitle"), pvCatch=$("pvCatch"),
+          durRange=$("durRange"), durChips=Array.prototype.slice.call(document.querySelectorAll(".chip[data-dur]")), fadeChips=Array.prototype.slice.call(document.querySelectorAll(".fade-chip")), badgeOpts=Array.prototype.slice.call(document.querySelectorAll(".badge-opt")),
+          title1=$("title1"), title2=$("title2"), title1Size=$("title1Size"), title2Size=$("title2Size"), title1Color=$("title1Color"), title2Color=$("title2Color"), catch1=$("catch1"), catch2=$("catch2"),
+          pvTitle1=$("pvTitle1"), pvTitle2=$("pvTitle2"), pvCatch=$("pvCatch"), pvBadge=$("pvBadge"), txtLayer=$("txtLayer"),
           generateBtn=$("generateBtn"), progressBox=$("progressBox"), progressFill=$("progressFill"),
           progressMsg=$("progressMsg"), genStatus=$("genStatus"),
           resultBox=$("resultBox"), resultVideo=$("resultVideo"), downloadBtn=$("downloadBtn"),
@@ -465,7 +568,7 @@
 
       var state = {
         file: null, objectUrl: null, duration: 0,
-        start: 0, dur: 30, playing: false, segCheck: null,
+        start: 0, dur: 30, fadeDur: 0.5, badge: "none", playing: false, segCheck: null,
         resultUrl: null, generating: false
       };
 
@@ -491,6 +594,7 @@
         ["step2","step3","step4"].forEach(function(id){ $(id).classList.toggle("locked", !on); });
         [startRange, durRange, nudgeBack, nudgeFwd, setFromPlayhead, playBtn].forEach(function(el){ el.disabled = !on; });
         durChips.forEach(function(c){ c.disabled = !on; });
+        fadeChips.forEach(function(c){ c.disabled = !on; });
         generateBtn.disabled = !on;
       }
 
@@ -539,6 +643,19 @@
         c.addEventListener("click", function(){
           state.dur = parseInt(c.getAttribute("data-dur"),10);
           refreshTrimUI();
+        });
+      });
+      fadeChips.forEach(function(c){
+        c.addEventListener("click", function(){
+          state.fadeDur = parseFloat(c.getAttribute("data-fade"));
+          fadeChips.forEach(function(x){ x.classList.toggle("on", x === c); });
+        });
+      });
+      badgeOpts.forEach(function(b){
+        b.addEventListener("click", function(){
+          state.badge = b.getAttribute("data-badge");
+          badgeOpts.forEach(function(x){ x.classList.toggle("on", x === b); });
+          syncText();
         });
       });
       nudgeBack.addEventListener("click", function(){ state.start = Math.max(0, state.start-1); refreshTrimUI(); seekTo(state.start); });
@@ -633,9 +750,9 @@
           }
         });
         // Default title from file name if the title field is still empty
-        if(!titleInput.value.trim()){
+        if(!title1.value.trim()){
           var base = f.name.replace(/\.[^.]+$/, "").replace(/[_]+/g, " ").trim();
-          if(base){ titleInput.value = base; syncText(); }
+          if(base){ title1.value = base; syncText(); }
         }
       });
 
@@ -646,7 +763,7 @@
         return m ? m[1] : null;
       }
       function applyFetchedTitle(t){
-        titleInput.value = t;
+        title1.value = t;
         syncText();
         setStatus(urlStatus, "タイトルを取得しました：『" + t + "』（工程03で修正できます）", "ok");
       }
@@ -678,15 +795,62 @@
       });
 
       /* ---------- text sync ---------- */
+      var BADGES = {
+        none: null,
+        new: { label: "新着", bg: "#e60012", fg: "#ffffff" },
+        recommend: { label: "おすすめ", bg: "#e8b93e", fg: "#211d1a" },
+        archive: { label: "名曲アーカイブ", bg: "#1e3a5f", fg: "#ffffff" },
+        kura: { label: "蔵出し", bg: "#8b5a2b", fg: "#ffffff" },
+        popular: { label: "人気曲", bg: "#d6336c", fg: "#ffffff" }
+      };
+      function isDarkColor(hex){
+        var h = (hex || "#ffffff").replace("#","");
+        if(h.length !== 6) return false;
+        var r = parseInt(h.substr(0,2),16), g = parseInt(h.substr(2,2),16), b = parseInt(h.substr(4,2),16);
+        return (0.299*r + 0.587*g + 0.114*b) < 70;
+      }
+      function applyLinePreview(el, text, sizePct, color){
+        el.textContent = text;
+        el.style.fontSize = (19 * sizePct / 100) + "px";
+        el.style.color = color;
+        el.style.textShadow = isDarkColor(color)
+          ? "0 1px 6px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.9)"
+          : "0 2px 8px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.9)";
+      }
       function syncText(){
-        pvTitle.textContent = titleInput.value.trim();
+        applyLinePreview(pvTitle1, title1.value.trim(), parseInt(title1Size.value,10) || 100, title1Color.value);
+        applyLinePreview(pvTitle2, title2.value.trim(), parseInt(title2Size.value,10) || 85, title2Color.value);
         var lines = [catch1.value.trim(), catch2.value.trim()].filter(function(s){ return s.length > 0; });
         pvCatch.textContent = lines.join("\n");
-        $("titleCount").textContent = titleInput.value.length;
+        $("title1Count").textContent = title1.value.length;
+        $("title2Count").textContent = title2.value.length;
+        $("title1SizeVal").textContent = title1Size.value + "%";
+        $("title2SizeVal").textContent = title2Size.value + "%";
         $("catch1Count").textContent = catch1.value.length;
         $("catch2Count").textContent = catch2.value.length;
+        var bd = BADGES[state.badge];
+        if(bd){
+          pvBadge.textContent = bd.label;
+          pvBadge.style.display = "inline-block";
+          pvBadge.style.background = bd.bg;
+          pvBadge.style.color = bd.fg;
+          txtLayer.classList.add("has-badge");
+        } else {
+          pvBadge.style.display = "none";
+          pvBadge.textContent = "";
+          txtLayer.classList.remove("has-badge");
+        }
       }
-      [titleInput, catch1, catch2].forEach(function(el){ el.addEventListener("input", syncText); });
+      [title1, title2, catch1, catch2, title1Size, title2Size, title1Color, title2Color].forEach(function(el){ el.addEventListener("input", syncText); });
+      Array.prototype.slice.call(document.querySelectorAll(".swatches")).forEach(function(sw){
+        var targetId = sw.getAttribute("data-for");
+        sw.querySelectorAll(".swatch").forEach(function(btn){
+          btn.addEventListener("click", function(){
+            var picker = $(targetId);
+            if(picker){ picker.value = btn.getAttribute("data-color"); syncText(); }
+          });
+        });
+      });
       syncText();
 
       /* ---------- text overlay PNG (drawn by the browser, full font control) ---------- */
@@ -717,47 +881,87 @@
           var cv = document.createElement("canvas");
           cv.width = W; cv.height = H;
           var ctx = cv.getContext("2d");
-          var title = titleInput.value.trim();
-          var catches = [catch1.value.trim(), catch2.value.trim()].filter(function(s){ return s; });
-          if(!title && catches.length === 0) return null;
+          var badge = (typeof BADGES !== "undefined") ? BADGES[state.badge] : null;
+          var titleSpecs = [
+            { text: title1.value.trim(), scale: (parseInt(title1Size.value,10)||100)/100, color: title1Color.value },
+            { text: title2.value.trim(), scale: (parseInt(title2Size.value,10)||85)/100, color: title2Color.value }
+          ].filter(function(t){ return t.text; });
+          var catches = [catch1.value.trim(), catch2.value.trim()].filter(function(t){ return t; });
+          if(titleSpecs.length === 0 && catches.length === 0 && !badge) return null;
 
           var padX = 70, maxW = W - padX*2;
-          // Title: shrink until it fits in <=3 lines
-          var tSize = 66, tLines = [];
-          while(tSize > 34){
-            ctx.font = '900 ' + tSize + 'px "Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif';
-            tLines = wrapLines(ctx, title, maxW, 3);
-            var widest = 0;
-            tLines.forEach(function(l){ widest = Math.max(widest, ctx.measureText(l).width); });
-            if(tLines.length < 3 || widest <= maxW) break;
-            tSize -= 6;
-          }
-          var tLH = Math.round(tSize * 1.32);
-          // Catch lines
+          var FONT = '"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif';
+          // Expand title specs into render lines, shrinking each if too wide
+          var renderLines = [];
+          titleSpecs.forEach(function(spec){
+            var size = Math.round(66 * spec.scale);
+            var lines = [];
+            while(size > 30){
+              ctx.font = '900 ' + size + 'px ' + FONT;
+              lines = wrapLines(ctx, spec.text, maxW, 2);
+              var widest = 0;
+              lines.forEach(function(l){ widest = Math.max(widest, ctx.measureText(l).width); });
+              if(widest <= maxW) break;
+              size -= 5;
+            }
+            lines.forEach(function(l){ renderLines.push({ text: l, size: size, color: spec.color }); });
+          });
           var cSize = 50, cLH = Math.round(cSize * 1.45);
-          ctx.font = '700 ' + cSize + 'px "Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif';
+          ctx.font = '700 ' + cSize + 'px ' + FONT;
           var cLines = [];
           catches.forEach(function(c){ cLines = cLines.concat(wrapLines(ctx, c, maxW, 2)); });
 
-          var blockH = (tLines.length ? tLines.length * tLH : 0) + (cLines.length ? 14 + cLines.length * cLH : 0);
-          var topY = 92;
-          // readability plate
-          ctx.fillStyle = "rgba(10,8,8,0.42)";
-          roundRect(ctx, 34, topY - 34, W - 68, blockH + 68, 30);
-          ctx.fill();
+          var blockH = 0;
+          renderLines.forEach(function(l){ blockH += Math.round(l.size * 1.32); });
+          if(cLines.length) blockH += (renderLines.length ? 14 : 0) + cLines.length * cLH;
 
+          var topY = badge ? 128 : 92;
+          // --- badge (top-right stamp, drawn above the title plate so it never overlaps the title) ---
+          if(badge){
+            ctx.save();
+            ctx.font = '800 36px ' + FONT;
+            var bw = Math.ceil(ctx.measureText(badge.label).width) + 56;
+            var bh = 60, bx = W - bw - 36, by = 34;
+            ctx.translate(bx + bw/2, by + bh/2);
+            ctx.rotate(0.055);
+            ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
+            ctx.fillStyle = badge.bg;
+            roundRect(ctx, -bw/2, -bh/2, bw, bh, 10); ctx.fill();
+            ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+            ctx.lineWidth = 3; ctx.strokeStyle = "rgba(255,255,255,0.95)";
+            roundRect(ctx, -bw/2, -bh/2, bw, bh, 10); ctx.stroke();
+            ctx.fillStyle = badge.fg;
+            ctx.textAlign = "center"; ctx.textBaseline = "middle";
+            ctx.fillText(badge.label, 0, 2);
+            ctx.restore();
+          }
+          // readability plate behind title + catch
+          if(blockH > 0){
+            ctx.fillStyle = "rgba(10,8,8,0.42)";
+            roundRect(ctx, 34, topY - 34, W - 68, blockH + 68, 30);
+            ctx.fill();
+          }
           ctx.textAlign = "center";
-          ctx.shadowColor = "rgba(0,0,0,0.9)";
-          ctx.shadowBlur = 10;
-          ctx.shadowOffsetY = 3;
-          var y = topY;
-          ctx.fillStyle = "#ffffff";
-          ctx.font = '900 ' + tSize + 'px "Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif';
           ctx.textBaseline = "top";
-          tLines.forEach(function(l){ ctx.fillText(l, W/2, y); y += tLH; });
+          var y = topY;
+          renderLines.forEach(function(l){
+            ctx.font = '900 ' + l.size + 'px ' + FONT;
+            ctx.shadowColor = isDarkColor(l.color) ? "rgba(255,255,255,0.9)" : "rgba(0,0,0,0.9)";
+            ctx.shadowBlur = isDarkColor(l.color) ? 8 : 10;
+            ctx.shadowOffsetY = 3;
+            if(isDarkColor(l.color)){
+              ctx.lineWidth = 5; ctx.strokeStyle = "rgba(255,255,255,0.85)";
+              ctx.strokeText(l.text, W/2, y);
+            }
+            ctx.fillStyle = l.color;
+            ctx.fillText(l.text, W/2, y);
+            y += Math.round(l.size * 1.32);
+          });
+          ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
           if(cLines.length){
-            y += 14;
-            ctx.font = '700 ' + cSize + 'px "Zen Kaku Gothic New","Hiragino Kaku Gothic ProN",sans-serif';
+            if(renderLines.length) y += 14;
+            ctx.fillStyle = "#ffffff";
+            ctx.font = '700 ' + cSize + 'px ' + FONT;
             cLines.forEach(function(l){ ctx.fillText(l, W/2, y); y += cLH; });
           }
           return new Promise(function(res){
@@ -815,20 +1019,24 @@
                   return overlayBlob.arrayBuffer().then(function(obuf){
                     ff.FS("writeFile", "overlay.png", new Uint8Array(obuf));
                     args = args.concat(["-i", "overlay.png"]);
+                    var fd = state.fadeDur, fo = Math.max(0, dur - fd).toFixed(2);
                     filter = "[0:v]split[a][b];" +
                       "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=30,eq=brightness=-0.10:saturation=0.9[bg];" +
                       "[b]scale=1080:-2:flags=lanczos[fg];" +
                       "[bg][fg]overlay=(W-w)/2:(H-h)/2[base];" +
-                      "[base][1:v]overlay=0:0[v]";
-                    args = args.concat(["-filter_complex", filter, "-map", "[v]", "-map", "0:a?"]);
+                      "[base][1:v]overlay=0:0[vbase];" +
+                      "[vbase]fade=t=in:st=0:d=" + fd + ",fade=t=out:st=" + fo + ":d=" + fd + ",format=yuv420p[v]";
+                    args = args.concat(["-filter_complex", filter, "-map", "[v]", "-map", "0:a?", "-af", "afade=t=in:st=0:d=" + fd + ",afade=t=out:st=" + fo + ":d=" + fd]);
                     return runFF(ff, args, dur, inName, true);
                   });
                 } else {
+                  var fd2 = state.fadeDur, fo2 = Math.max(0, dur - fd2).toFixed(2);
                   filter = "[0:v]split[a][b];" +
                     "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=30,eq=brightness=-0.10:saturation=0.9[bg];" +
                     "[b]scale=1080:-2:flags=lanczos[fg];" +
-                    "[bg][fg]overlay=(W-w)/2:(H-h)/2[v]";
-                  args = args.concat(["-filter_complex", filter, "-map", "[v]", "-map", "0:a?"]);
+                    "[bg][fg]overlay=(W-w)/2:(H-h)/2[vbase];" +
+                    "[vbase]fade=t=in:st=0:d=" + fd2 + ",fade=t=out:st=" + fo2 + ":d=" + fd2 + ",format=yuv420p[v]";
+                  args = args.concat(["-filter_complex", filter, "-map", "[v]", "-map", "0:a?", "-af", "afade=t=in:st=0:d=" + fd2 + ",afade=t=out:st=" + fo2 + ":d=" + fd2]);
                   return runFF(ff, args, dur, inName, false);
                 }
               });
