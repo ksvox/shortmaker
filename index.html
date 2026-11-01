@@ -290,6 +290,31 @@
       .swatch{width:26px;height:26px;border-radius:50%;border:2px solid rgba(33,29,26,.55);cursor:pointer;padding:0;flex-shrink:0}
       .swatch:active{transform:scale(.92)}
       .fade-note{font-size:12.5px;color:var(--ink-2);margin:6px 0 0}
+      /* ---------- preset sets ---------- */
+      .preset-box{margin-top:22px;border:2px solid var(--ink);border-radius:12px;background:var(--paper);padding:14px 14px 12px;box-shadow:3px 3px 0 rgba(33,29,26,.14)}
+      .preset-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
+      .preset-head .preset-icon{font-size:18px;line-height:1}
+      .preset-head h3{font-family:var(--font-head);font-weight:800;font-size:16px;margin:0}
+      .preset-head .preset-tag{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;color:#fff;background:var(--ink);border-radius:999px;padding:2px 8px}
+      .preset-desc{font-size:12.5px;color:var(--ink-2);margin:0 0 10px;line-height:1.6}
+      .preset-save-row{display:flex;gap:8px}
+      .preset-save-row input{flex:1;min-width:0}
+      .preset-save-row .btn{flex-shrink:0;white-space:nowrap}
+      .preset-list{display:grid;gap:8px;margin-top:12px}
+      .preset-empty{font-size:13px;color:var(--ink-2);border:1.5px dashed var(--line);border-radius:10px;padding:10px 12px;text-align:center;background:#fff}
+      .preset-item{display:flex;align-items:center;gap:8px;background:#fff;border:1.5px solid var(--line);border-radius:10px;padding:9px 10px}
+      .preset-item-main{flex:1;min-width:0}
+      .preset-item-name{font-weight:800;font-size:14px;word-break:break-word;line-height:1.35}
+      .preset-item-meta{font-size:11.5px;color:var(--ink-2);font-family:var(--font-mono);margin-top:1px;word-break:break-word;line-height:1.5}
+      .preset-item-actions{display:flex;gap:6px;flex-shrink:0}
+      .preset-item-actions .btn{padding:7px 10px;font-size:12.5px}
+      .preset-item-actions .btn-delete{color:var(--red-dark);border-color:#d8c9b8}
+      @media (max-width:420px){
+        .preset-save-row{flex-direction:column}
+        .preset-save-row .btn{width:100%}
+        .preset-item{flex-direction:column;align-items:stretch}
+        .preset-item-actions{justify-content:flex-end}
+      }
       @media (max-width:380px){
         .url-row{flex-direction:column}
         .url-row .btn{width:100%}
@@ -426,11 +451,11 @@
             <button type="button" class="badge-opt on" data-badge="none">なし</button>
             <button type="button" class="badge-opt" data-badge="new">新着</button>
             <button type="button" class="badge-opt" data-badge="recommend">おすすめ</button>
-            <button type="button" class="badge-opt" data-badge="archive">名曲アーカイブ</button>
+            <button type="button" class="badge-opt" data-badge="archive">アーカイブ</button>
             <button type="button" class="badge-opt" data-badge="kura">蔵出し</button>
-            <button type="button" class="badge-opt" data-badge="popular">人気曲</button>
+            <button type="button" class="badge-opt" data-badge="popular">人気</button>
           </div>
-          <p class="hint">バッジは上部帯の右上に、小さなスタンプのように付きます。アーカイブ系の古い動画には「名曲アーカイブ」「蔵出し」がおすすめです。</p>
+          <p class="hint">バッジは上部帯の右上に、小さなスタンプのように付きます。アーカイブ系の古い動画には「アーカイブ」「蔵出し」がおすすめです。</p>
 
           <div class="title-block">
             <label class="f-label" for="title1">タイトル（1行目）</label>
@@ -488,6 +513,23 @@
           <input type="text" id="catch2" maxlength="24" placeholder="例：指導歴30年のコーチと弟子たち" autocomplete="off" />
           <div class="char-count"><span id="catch2Count">0</span> / 24</div>
           <p class="hint">キャッチは2行とも空欄でも大丈夫です。その場合はタイトルだけが上部に出ます。</p>
+        </div>
+
+        <div class="preset-box" id="presetBox">
+            <div class="preset-head">
+              <span class="preset-icon" aria-hidden="true">🗂️</span>
+              <h3>設定セット</h3>
+              <span class="preset-tag">LOCAL ONLY</span>
+            </div>
+            <p class="preset-desc">今の設定（フェード・バッジ・タイトルの大きさと色・キャッチコピー）を名前を付けて保存できます。保存先はこの端末のブラウザ内だけです。次回は一覧から「適用」を押すだけで呼び出せます。</p>
+            <label class="f-label" for="presetName" style="margin-top:4px">セット名</label>
+            <div class="preset-save-row">
+              <input type="text" id="presetName" maxlength="30" placeholder="例：アーカイブ用、新作カバー用" autocomplete="off" />
+              <button type="button" class="btn small red" id="presetSaveBtn">この設定を保存</button>
+            </div>
+            <p class="status" id="presetStatus" role="status"></p>
+            <div class="preset-list" id="presetList"></div>
+            <div class="preset-empty" id="presetEmpty">まだ保存されたセットはありません。<br />よく使う組み合わせを保存しておくと、次回から一瞬で呼び出せます。</div>
         </div>
       </section>
 
@@ -799,9 +841,9 @@
         none: null,
         new: { label: "新着", bg: "#e60012", fg: "#ffffff" },
         recommend: { label: "おすすめ", bg: "#e8b93e", fg: "#211d1a" },
-        archive: { label: "名曲アーカイブ", bg: "#1e3a5f", fg: "#ffffff" },
+        archive: { label: "アーカイブ", bg: "#1e3a5f", fg: "#ffffff" },
         kura: { label: "蔵出し", bg: "#8b5a2b", fg: "#ffffff" },
-        popular: { label: "人気曲", bg: "#d6336c", fg: "#ffffff" }
+        popular: { label: "人気", bg: "#d6336c", fg: "#ffffff" }
       };
       function isDarkColor(hex){
         var h = (hex || "#ffffff").replace("#","");
@@ -852,6 +894,147 @@
         });
       });
       syncText();
+
+      /* ---------- preset sets (localStorage, this device only) ---------- */
+      var PRESET_KEY = "ksvox_shortmaker_presets_v1";
+      var presetNameInput = $("presetName"), presetSaveBtn = $("presetSaveBtn"),
+          presetListEl = $("presetList"), presetEmptyEl = $("presetEmpty"), presetStatusEl = $("presetStatus");
+      function loadPresets(){
+        try{
+          var raw = localStorage.getItem(PRESET_KEY);
+          if(!raw) return [];
+          var arr = JSON.parse(raw);
+          return Array.isArray(arr) ? arr : [];
+        }catch(e){ return []; }
+      }
+      function storePresets(arr){
+        try{ localStorage.setItem(PRESET_KEY, JSON.stringify(arr)); }catch(e){}
+      }
+      function badgeLabelFor(key){
+        var b = BADGES[key];
+        return b ? b.label : "なし";
+      }
+      function getCurrentPresetData(){
+        return {
+          fadeDur: state.fadeDur,
+          badge: state.badge,
+          dur: state.dur,
+          title1Size: String(title1Size.value),
+          title2Size: String(title2Size.value),
+          title1Color: String(title1Color.value),
+          title2Color: String(title2Color.value),
+          catch1: catch1.value,
+          catch2: catch2.value
+        };
+      }
+      function applyPresetData(d){
+        if(!d) return;
+        if(typeof d.fadeDur !== "undefined" && d.fadeDur !== null){
+          state.fadeDur = parseFloat(d.fadeDur) || 0.5;
+          fadeChips.forEach(function(x){ x.classList.toggle("on", parseFloat(x.getAttribute("data-fade")) === state.fadeDur); });
+        }
+        if(d.badge && BADGES.hasOwnProperty(d.badge)){
+          state.badge = d.badge;
+          badgeOpts.forEach(function(x){ x.classList.toggle("on", x.getAttribute("data-badge") === state.badge); });
+        }
+        if(typeof d.dur !== "undefined" && d.dur !== null){
+          var nd = parseInt(d.dur, 10);
+          if(isFinite(nd) && nd >= 5 && nd <= 60) state.dur = nd;
+        }
+        if(d.title1Size) title1Size.value = d.title1Size;
+        if(d.title2Size) title2Size.value = d.title2Size;
+        if(d.title1Color) title1Color.value = d.title1Color;
+        if(d.title2Color) title2Color.value = d.title2Color;
+        if(typeof d.catch1 !== "undefined") catch1.value = d.catch1 || "";
+        if(typeof d.catch2 !== "undefined") catch2.value = d.catch2 || "";
+        refreshTrimUI();
+        syncText();
+      }
+      function renderPresets(){
+        var presets = loadPresets();
+        presetListEl.innerHTML = "";
+        if(!presets.length){
+          presetEmptyEl.style.display = "block";
+          return;
+        }
+        presetEmptyEl.style.display = "none";
+        presets.forEach(function(p, idx){
+          var item = document.createElement("div");
+          item.className = "preset-item";
+          var main = document.createElement("div");
+          main.className = "preset-item-main";
+          var nameEl = document.createElement("div");
+          nameEl.className = "preset-item-name";
+          nameEl.textContent = p.name || ("セット " + (idx + 1));
+          var meta = document.createElement("div");
+          meta.className = "preset-item-meta";
+          var d = p.data || {};
+          var parts = [];
+          parts.push("バッジ: " + badgeLabelFor(d.badge || "none"));
+          if(typeof d.fadeDur !== "undefined") parts.push("フェード " + d.fadeDur + "秒");
+          if(d.dur) parts.push(d.dur + "秒");
+          if(d.catch1) parts.push("キャッチ: " + d.catch1);
+          meta.textContent = parts.join(" · ");
+          main.appendChild(nameEl);
+          main.appendChild(meta);
+          var actions = document.createElement("div");
+          actions.className = "preset-item-actions";
+          var applyBtn = document.createElement("button");
+          applyBtn.type = "button";
+          applyBtn.className = "btn small red";
+          applyBtn.textContent = "適用";
+          applyBtn.addEventListener("click", function(){
+            applyPresetData(p.data);
+            setStatus(presetStatusEl, "「" + p.name + "」を適用しました。", "ok");
+            var step3 = $("step3");
+            if(step3) step3.scrollIntoView({ behavior: "smooth", block: "start" });
+          });
+          var delBtn = document.createElement("button");
+          delBtn.type = "button";
+          delBtn.className = "btn small btn-delete";
+          delBtn.textContent = "削除";
+          delBtn.addEventListener("click", function(){
+            var cur = loadPresets();
+            cur.splice(idx, 1);
+            storePresets(cur);
+            renderPresets();
+            setStatus(presetStatusEl, "「" + p.name + "」を削除しました。", "ok");
+          });
+          actions.appendChild(applyBtn);
+          actions.appendChild(delBtn);
+          item.appendChild(main);
+          item.appendChild(actions);
+          presetListEl.appendChild(item);
+        });
+      }
+      if(presetSaveBtn){
+        presetSaveBtn.addEventListener("click", function(){
+          var name = (presetNameInput.value || "").trim();
+          if(!name){
+            setStatus(presetStatusEl, "セット名を入力してください。", "err");
+            presetNameInput.focus();
+            return;
+          }
+          var presets = loadPresets();
+          var data = getCurrentPresetData();
+          var existing = -1;
+          for(var i = 0; i < presets.length; i++){ if(presets[i].name === name){ existing = i; break; } }
+          if(existing >= 0){
+            presets[existing].data = data;
+            presets[existing].savedAt = Date.now();
+          } else {
+            presets.push({ name: name, data: data, savedAt: Date.now() });
+          }
+          storePresets(presets);
+          presetNameInput.value = "";
+          renderPresets();
+          setStatus(presetStatusEl, existing >= 0 ? "「" + name + "」を上書き保存しました。" : "「" + name + "」を保存しました。この端末の中だけに残ります。", "ok");
+        });
+        presetNameInput.addEventListener("keydown", function(e){
+          if(e.key === "Enter"){ e.preventDefault(); presetSaveBtn.click(); }
+        });
+      }
+      renderPresets();
 
       /* ---------- text overlay PNG (drawn by the browser, full font control) ---------- */
       function wrapLines(ctx, text, maxWidth, maxLines){
