@@ -202,6 +202,14 @@
         font-size:17px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
       }
       .play-btn:disabled{opacity:.4;cursor:not-allowed}
+      .seek-btn{
+        width:38px;height:38px;border-radius:50%;border:2px solid #fff;background:rgba(255,255,255,.14);color:#fff;
+        font-size:14px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;
+      }
+      .seek-btn:disabled{opacity:.4;cursor:not-allowed}
+      .seek-row{margin-top:6px;padding:0 6px}
+      .seek-row input[type="range"]{height:26px}
+      .cut-block{margin-top:20px;border-top:1.5px dashed var(--line);padding-top:6px}
 
       /* trim */
       .tc-big{font-family:var(--font-mono);font-weight:600}
@@ -263,7 +271,7 @@
       .phone .pv-badge{
         position:absolute;top:14px;right:12px;z-index:5;display:none;
         font-family:var(--font-head);font-weight:800;font-size:11.5px;letter-spacing:.06em;
-        padding:4px 11px 5px;border-radius:6px;border:1.5px solid rgba(255,255,255,.92);
+        padding:2px 8px 3px;border-radius:6px;border:1.5px solid rgba(255,255,255,.92);
         box-shadow:0 3px 10px rgba(0,0,0,.5);transform:rotate(3deg);pointer-events:none;white-space:nowrap;
       }
       .phone .txt-layer.has-badge{padding-top:46px}
@@ -397,8 +405,13 @@
               <div class="safe-note">BOTTOM = SHORTS UI AREA</div>
             </div>
             <div class="preview-tools">
+              <button type="button" class="seek-btn" id="seekBackBtn" disabled aria-label="5秒早戻し">⏪</button>
               <button type="button" class="play-btn" id="playBtn" disabled aria-label="切り取り範囲をプレビュー再生">▶</button>
+              <button type="button" class="seek-btn" id="seekFwdBtn" disabled aria-label="5秒早送り">⏩</button>
               <span class="tc" id="nowTc">00:00.0</span>
+            </div>
+            <div class="seek-row">
+              <input type="range" id="seekRange" min="0" max="1000" step="1" value="0" disabled aria-label="区間内の再生位置" />
             </div>
           </div>
 
@@ -439,6 +452,18 @@
             <button type="button" class="chip fade-chip" data-fade="3">3秒</button>
           </div>
           <p class="fade-note">切り出しの最初と最後に、映像と音声の両方へフェードイン／フェードアウトが付きます。歌唱の途中からでも、ふわりと入り、ふわりと終わります。プレビュー再生でも、選んだ長さのまま再現されます。</p>
+
+          <div class="cut-block">
+            <label class="f-label">先に切り取って、素材を小さくする</label>
+            <p class="hint" style="margin-bottom:10px">元の動画が大きい場合は、決めた開始位置と長さで先に切り取っておくと、工程04の生成が軽くなります。切り取った後は開始位置が0秒に戻ります。</p>
+            <button type="button" class="btn red" id="cutBtn" disabled>✂ この長さで切り取る</button>
+            <button type="button" class="btn small" id="restoreBtn" style="display:none;margin-left:8px">元の動画に戻す</button>
+            <div class="progress-box" id="cutProgressBox">
+              <div class="progress-track"><div class="progress-fill" id="cutProgressFill"></div></div>
+              <p class="progress-msg" id="cutProgressMsg">準備中…</p>
+            </div>
+            <p class="status" id="cutStatus" role="status"></p>
+          </div>
         </div>
       </section>
 
@@ -642,12 +667,16 @@
           generateBtn=$("generateBtn"), progressBox=$("progressBox"), progressFill=$("progressFill"),
           progressMsg=$("progressMsg"), genStatus=$("genStatus"),
           resultBox=$("resultBox"), resultVideo=$("resultVideo"), downloadBtn=$("downloadBtn"),
-          resultMeta=$("resultMeta"), discardBtn=$("discardBtn");
+          resultMeta=$("resultMeta"), discardBtn=$("discardBtn"),
+          seekBackBtn=$("seekBackBtn"), seekFwdBtn=$("seekFwdBtn"), seekRange=$("seekRange"),
+          cutBtn=$("cutBtn"), restoreBtn=$("restoreBtn"), cutProgressBox=$("cutProgressBox"), cutProgressFill=$("cutProgressFill"),
+          cutProgressMsg=$("cutProgressMsg"), cutStatus=$("cutStatus");
 
       var state = {
         file: null, objectUrl: null, duration: 0,
         start: 0, dur: 30, fadeDur: 1, badge: "none", playing: false, segCheck: null,
-        resultUrl: null, generating: false
+        resultUrl: null, generating: false,
+        origFile: null, origUrl: null, cutting: false, scrubbing: false
       };
 
       function fmt(sec, tenth){
@@ -670,7 +699,7 @@
       /* ---------- sections lock/unlock ---------- */
       function setStepsEnabled(on){
         ["step2","step3","step4"].forEach(function(id){ $(id).classList.toggle("locked", !on); });
-        [startRange, durRange, nudgeBack, nudgeFwd, setFromPlayhead, playBtn].forEach(function(el){ el.disabled = !on; });
+        [startRange, durRange, nudgeBack, nudgeFwd, setFromPlayhead, playBtn, seekBackBtn, seekFwdBtn, seekRange, cutBtn, restoreBtn].forEach(function(el){ el.disabled = !on; });
         durChips.forEach(function(c){ c.disabled = !on; });
         fadeChips.forEach(function(c){ c.disabled = !on; });
         generateBtn.disabled = !on;
@@ -805,6 +834,10 @@
       });
       fgVideo.addEventListener("timeupdate", function(){
         nowTc.textContent = fmt(fgVideo.currentTime, true);
+        if(!state.scrubbing && state.dur > 0){
+          var frac = (fgVideo.currentTime - state.start) / state.dur;
+          seekRange.value = Math.max(0, Math.min(1000, Math.round(frac * 1000)));
+        }
         if(Math.abs(bgVideo.currentTime - fgVideo.currentTime) > 0.35){
           try{ bgVideo.currentTime = fgVideo.currentTime; }catch(e){}
         }
@@ -816,6 +849,21 @@
       fgVideo.addEventListener("pause", function(){
         if(state.playing){ bgVideo.pause(); state.playing = false; stopSegCheck(); setPlayIcon(); resetFadePreview(); }
       });
+
+      /* ---------- preview seek (rewind / fast-forward / scrub) ---------- */
+      function seekWithinSegment(absSec){
+        if(!state.file) return;
+        var t = Math.max(state.start, Math.min(absSec, state.start + state.dur));
+        seekTo(t);
+        if(state.playing) applyFadePreview();
+      }
+      seekBackBtn.addEventListener("click", function(){ seekWithinSegment(fgVideo.currentTime - 5); });
+      seekFwdBtn.addEventListener("click", function(){ seekWithinSegment(fgVideo.currentTime + 5); });
+      seekRange.addEventListener("input", function(){
+        state.scrubbing = true;
+        seekWithinSegment(state.start + (parseInt(seekRange.value,10)/1000) * state.dur);
+      });
+      seekRange.addEventListener("change", function(){ state.scrubbing = false; });
 
       /* ---------- file loading ---------- */
       function clearResult(){
@@ -831,6 +879,11 @@
         setStatus(genStatus, "");
         state.file = f;
         state.objectUrl = URL.createObjectURL(f);
+        state.origFile = f;
+        state.origUrl = state.objectUrl;
+        restoreBtn.style.display = "none";
+        cutProgressBox.classList.remove("show");
+        setStatus(cutStatus, "");
         state.start = 0;
         bgVideo.src = state.objectUrl;
         fgVideo.src = state.objectUrl;
@@ -854,6 +907,7 @@
           layoutCatch();
           seekTo(0);
           setStatus(loadStatus, "読み込みました。工程02で切り取る場所を決めてください。", "ok");
+          loadFFmpeg(null).catch(function(){});
         });
         fgVideo.addEventListener("error", function onErr(){
           fgVideo.removeEventListener("error", onErr);
@@ -955,9 +1009,9 @@
         var hasBadge = !!(typeof BADGES !== "undefined" && BADGES[state.badge]);
         var titleBox = pvTitle1 ? pvTitle1.parentNode : null;
         var titleH = (titleBox && titleBox.offsetHeight) || 0;
-        var badgeZone = hasBadge ? 24 : 0;
+        var badgeZone = hasBadge ? ((pvBadge.offsetHeight || 20) + 6) : 0;
         var groupH = badgeZone + titleH;
-        if(hasBadge && titleH === 0) groupH = 24;
+        if(hasBadge && titleH === 0) groupH = badgeZone;
         var groupTop = Math.round((bandH - groupH) / 2);
         if(groupTop < 7) groupTop = 7;
         txtLayer.style.paddingTop = (groupTop + badgeZone) + "px";
@@ -1220,9 +1274,9 @@
           // centre the badge + title group in the top blur band
           var fgH2 = (fgVideo.videoWidth > 0 && fgVideo.videoHeight > 0) ? Math.min(W * fgVideo.videoHeight / fgVideo.videoWidth, H) : W * 9 / 16;
           var topBandH = (H - fgH2) / 2;
-          var badgeZone = badge ? 94 : 0;
+          var badgeZone = badge ? 82 : 0;
           var groupH = badgeZone + blockH;
-          if(badge && blockH === 0) groupH = 60;
+          if(badge && blockH === 0) groupH = 48;
           var groupTop = Math.round((topBandH - groupH) / 2);
           if(groupTop < 28) groupTop = 28;
           var topY = groupTop + badgeZone;
@@ -1230,8 +1284,8 @@
           if(badge){
             ctx.save();
             ctx.font = '800 36px ' + FONT;
-            var bw = Math.ceil(ctx.measureText(badge.label).width) + 56;
-            var bh = 60, bx = W - bw - 36, by = groupTop;
+            var bw = Math.ceil(ctx.measureText(badge.label).width) + 36;
+            var bh = 48, bx = W - bw - 36, by = groupTop;
             ctx.translate(bx + bw/2, by + bh/2);
             ctx.rotate(0.055);
             ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
@@ -1290,19 +1344,142 @@
         });
       }
 
+      /* ---------- pre-trim: work on a small cut file instead of the big original ---------- */
+      function useWorkingFile(file, url){
+        if(state.playing){
+          fgVideo.pause(); bgVideo.pause();
+          state.playing = false; stopSegCheck(); setPlayIcon(); resetFadePreview();
+        }
+        state.file = file;
+        state.objectUrl = url;
+        state.start = 0;
+        clearResult();
+        bgVideo.src = url;
+        fgVideo.src = url;
+        emptyMsg.style.display = "none";
+        fileInfo.classList.add("show");
+        fileNameEl.textContent = file.name || "trimmed.mp4";
+        fileMetaEl.textContent = "読み込み中…";
+        fgVideo.addEventListener("loadedmetadata", function onMeta2(){
+          fgVideo.removeEventListener("loadedmetadata", onMeta2);
+          state.duration = fgVideo.duration || 0;
+          fileMetaEl.textContent = "長さ " + fmt(state.duration, true) + " · " + fmtSize(file.size) + " · " + (fgVideo.videoWidth||"?") + "×" + (fgVideo.videoHeight||"?");
+          startRange.max = Math.max(0, state.duration - 5);
+          clampTrim();
+          refreshTrimUI();
+          layoutTop();
+          layoutCatch();
+          seekTo(0);
+        });
+      }
+
+      cutBtn.addEventListener("click", function(){
+        if(!state.file || state.cutting || state.generating) return;
+        state.cutting = true;
+        cutBtn.disabled = true;
+        generateBtn.disabled = true;
+        setStatus(cutStatus, "");
+        cutProgressBox.classList.add("show");
+        cutProgressFill.style.width = "4%";
+        cutProgressMsg.textContent = "変換エンジンを読み込んでいます…（初回は少し時間がかかります）";
+        var start = state.start, dur = state.dur;
+        var inName = "input" + extOf(state.file.name || "video.mp4");
+        var args = ["-ss", String(start), "-i", inName, "-t", String(dur),
+          "-c:v", "libx264", "-preset", "veryfast", "-crf", "20", "-pix_fmt", "yuv420p",
+          "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart"];
+        runConversion(state.file, inName, [], args, "trimmed.mp4", function(ratio){
+          if(ratio > 0){
+            cutProgressFill.style.width = Math.min(97, Math.round(ratio*100)) + "%";
+            cutProgressMsg.textContent = "切り取り中… " + Math.round(ratio*100) + "%";
+          }
+        }).then(function(data){
+          var blob = new Blob([data.buffer], { type: "video/mp4" });
+          var tname = "trimmed_" + dur + "s.mp4";
+          var tfile;
+          try{ tfile = new File([blob], tname, { type: "video/mp4" }); }
+          catch(e){ tfile = blob; try{ Object.defineProperty(tfile, "name", { value: tname }); }catch(e2){} }
+          var url = URL.createObjectURL(tfile);
+          if(state.objectUrl && state.objectUrl !== state.origUrl) URL.revokeObjectURL(state.objectUrl);
+          useWorkingFile(tfile, url);
+          restoreBtn.style.display = "";
+          cutProgressFill.style.width = "100%";
+          cutProgressMsg.textContent = "切り取りが終わりました。";
+          setStatus(cutStatus, "切り取りました（" + dur + "秒・" + fmtSize(blob.size) + "）。この小さい素材で作業を続けます。", "ok");
+        }).catch(function(err){
+          cutProgressBox.classList.remove("show");
+          setStatus(cutStatus, "切り取りできませんでした。" + (err && err.message ? "（" + err.message + "）" : ""), "err");
+        }).then(function(){
+          state.cutting = false;
+          cutBtn.disabled = false;
+          generateBtn.disabled = false;
+        });
+      });
+
+      restoreBtn.addEventListener("click", function(){
+        if(!state.origFile || state.cutting || state.generating) return;
+        if(state.objectUrl && state.objectUrl !== state.origUrl) URL.revokeObjectURL(state.objectUrl);
+        useWorkingFile(state.origFile, state.origUrl);
+        restoreBtn.style.display = "none";
+        cutProgressBox.classList.remove("show");
+        setStatus(cutStatus, "元の動画に戻しました。", "ok");
+      });
+
       /* ---------- generation with ffmpeg.wasm ---------- */
-      var ffmpeg = null;
+      // Single-thread core (@ffmpeg/core-st): works without SharedArrayBuffer,
+      // which this hosting cannot provide (no COOP/COEP headers).
+      var ffmpeg = null, ffmpegLoadPromise = null, ffProgressCb = null;
+      var FFMPEG_CORE_URL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js";
+      function resetFFmpeg(){ ffmpeg = null; ffmpegLoadPromise = null; }
       function loadFFmpeg(onProgress){
-        if(ffmpeg) return Promise.resolve(ffmpeg);
+        if(onProgress) ffProgressCb = onProgress;
+        if(ffmpeg && ffmpeg.isLoaded && ffmpeg.isLoaded()) return Promise.resolve(ffmpeg);
+        if(ffmpegLoadPromise) return ffmpegLoadPromise;
         if(typeof FFmpeg === "undefined" || !FFmpeg.createFFmpeg){
           return Promise.reject(new Error("変換エンジンを読み込めませんでした。通信環境を確認して、もう一度お試しください。"));
         }
-        ffmpeg = FFmpeg.createFFmpeg({
-          log: false,
-          corePath: "https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.11.0/dist/ffmpeg-core.js"
+        var inst = FFmpeg.createFFmpeg({ log: false, corePath: FFMPEG_CORE_URL });
+        inst.setProgress(function(p){ if(ffProgressCb) ffProgressCb(p ? p.ratio : 0); });
+        ffmpeg = inst;
+        ffmpegLoadPromise = inst.load().then(function(){
+          return inst;
+        }).catch(function(err){
+          // never keep a half-loaded engine: the next attempt must load again
+          if(ffmpeg === inst) ffmpeg = null;
+          ffmpegLoadPromise = null;
+          throw err;
         });
-        ffmpeg.setProgress(function(p){ if(onProgress) onProgress(p ? p.ratio : 0); });
-        return ffmpeg.load().then(function(){ return ffmpeg; });
+        return ffmpegLoadPromise;
+      }
+      function runConversion(inputFile, inName, extraFiles, args, outName, onProgress){
+        function once(){
+          return loadFFmpeg(onProgress).then(function(ff){
+            if(ff.isLoaded && !ff.isLoaded()){
+              return ff.load().then(function(){ return ff; });
+            }
+            return ff;
+          }).then(function(ff){
+            return inputFile.arrayBuffer().then(function(buf){
+              ff.FS("writeFile", inName, new Uint8Array(buf));
+              (extraFiles || []).forEach(function(xf){ ff.FS("writeFile", xf.name, xf.data); });
+              return ff.run.apply(ff, args.concat([outName])).then(function(){
+                var data = ff.FS("readFile", outName);
+                try{ ff.FS("unlink", inName); }catch(e){}
+                try{ ff.FS("unlink", outName); }catch(e){}
+                (extraFiles || []).forEach(function(xf){ try{ ff.FS("unlink", xf.name); }catch(e){} });
+                if(!data || data.length === 0) throw new Error("出力が空でした");
+                return data;
+              });
+            });
+          });
+        }
+        return once().catch(function(err){
+          var msg = (err && err.message) || "";
+          if(/not ready|SharedArrayBuffer/i.test(msg)){
+            resetFFmpeg();
+            return once();
+          }
+          throw err;
+        });
       }
       function extOf(name){
         var m = name.match(/\.([A-Za-z0-9]{2,5})$/);
@@ -1322,41 +1499,41 @@
         var start = state.start, dur = state.dur;
         buildOverlayBlob()
           .then(function(overlayBlob){
-            return loadFFmpeg(function(ratio){
-              if(ratio > 0){
-                progressFill.style.width = Math.min(97, Math.round(ratio*100)) + "%";
-                progressMsg.textContent = "生成中… " + Math.round(ratio*100) + "%";
-              }
-            }).then(function(ff){
+            var inName = "input" + extOf(state.file.name || "video.mp4");
+            var args = ["-ss", String(start), "-i", inName];
+            var fd = state.fadeDur, fo = Math.max(0, dur - fd).toFixed(2);
+            var filter, extra = [], prep = Promise.resolve();
+            if(overlayBlob){
+              prep = overlayBlob.arrayBuffer().then(function(obuf){
+                extra.push({ name: "overlay.png", data: new Uint8Array(obuf) });
+                args = args.concat(["-i", "overlay.png"]);
+                filter = "[0:v]split[a][b];" +
+                  "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=30,eq=brightness=-0.10:saturation=0.9[bg];" +
+                  "[b]scale=1080:-2:flags=lanczos[fg];" +
+                  "[bg][fg]overlay=(W-w)/2:(H-h)/2[base];" +
+                  "[base][1:v]overlay=0:0[vbase];" +
+                  "[vbase]fade=t=in:st=0:d=" + fd + ",fade=t=out:st=" + fo + ":d=" + fd + ",format=yuv420p[v]";
+              });
+            } else {
+              filter = "[0:v]split[a][b];" +
+                "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=30,eq=brightness=-0.10:saturation=0.9[bg];" +
+                "[b]scale=1080:-2:flags=lanczos[fg];" +
+                "[bg][fg]overlay=(W-w)/2:(H-h)/2[vbase];" +
+                "[vbase]fade=t=in:st=0:d=" + fd + ",fade=t=out:st=" + fo + ":d=" + fd + ",format=yuv420p[v]";
+            }
+            return prep.then(function(){
+              args = args.concat(["-filter_complex", filter, "-map", "[v]", "-map", "0:a?",
+                "-af", "afade=t=in:st=0:d=" + fd + ",afade=t=out:st=" + fo + ":d=" + fd,
+                "-t", String(dur),
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-pix_fmt", "yuv420p",
+                "-c:a", "aac", "-b:a", "160k",
+                "-movflags", "+faststart"]);
               progressMsg.textContent = "動画を変換しています…";
-              var inName = "input" + extOf(state.file.name);
-              return state.file.arrayBuffer().then(function(buf){
-                ff.FS("writeFile", inName, new Uint8Array(buf));
-                var args = ["-ss", String(start), "-i", inName];
-                var filter, mapArgs;
-                if(overlayBlob){
-                  return overlayBlob.arrayBuffer().then(function(obuf){
-                    ff.FS("writeFile", "overlay.png", new Uint8Array(obuf));
-                    args = args.concat(["-i", "overlay.png"]);
-                    var fd = state.fadeDur, fo = Math.max(0, dur - fd).toFixed(2);
-                    filter = "[0:v]split[a][b];" +
-                      "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=30,eq=brightness=-0.10:saturation=0.9[bg];" +
-                      "[b]scale=1080:-2:flags=lanczos[fg];" +
-                      "[bg][fg]overlay=(W-w)/2:(H-h)/2[base];" +
-                      "[base][1:v]overlay=0:0[vbase];" +
-                      "[vbase]fade=t=in:st=0:d=" + fd + ",fade=t=out:st=" + fo + ":d=" + fd + ",format=yuv420p[v]";
-                    args = args.concat(["-filter_complex", filter, "-map", "[v]", "-map", "0:a?", "-af", "afade=t=in:st=0:d=" + fd + ",afade=t=out:st=" + fo + ":d=" + fd]);
-                    return runFF(ff, args, dur, inName, true);
-                  });
-                } else {
-                  var fd2 = state.fadeDur, fo2 = Math.max(0, dur - fd2).toFixed(2);
-                  filter = "[0:v]split[a][b];" +
-                    "[a]scale=1080:1920:force_original_aspect_ratio=increase,crop=1080:1920,gblur=sigma=30,eq=brightness=-0.10:saturation=0.9[bg];" +
-                    "[b]scale=1080:-2:flags=lanczos[fg];" +
-                    "[bg][fg]overlay=(W-w)/2:(H-h)/2[vbase];" +
-                    "[vbase]fade=t=in:st=0:d=" + fd2 + ",fade=t=out:st=" + fo2 + ":d=" + fd2 + ",format=yuv420p[v]";
-                  args = args.concat(["-filter_complex", filter, "-map", "[v]", "-map", "0:a?", "-af", "afade=t=in:st=0:d=" + fd2 + ",afade=t=out:st=" + fo2 + ":d=" + fd2]);
-                  return runFF(ff, args, dur, inName, false);
+              return runConversion(state.file, inName, extra, args, "output.mp4", function(ratio){
+                if(ratio > 0){
+                  progressFill.style.width = Math.min(97, Math.round(ratio*100)) + "%";
+                  progressMsg.textContent = "生成中… " + Math.round(ratio*100) + "%";
                 }
               });
             });
@@ -1376,31 +1553,12 @@
           })
           .catch(function(err){
             progressBox.classList.remove("show");
-            setStatus(genStatus, "生成できませんでした。" + (err && err.message ? "（" + err.message + "）" : "") + " 元動画が大きい場合は、短めの素材で試すか、PCでお試しください。", "err");
+            setStatus(genStatus, "生成できませんでした。" + (err && err.message ? "（" + err.message + "）" : "") + " 元動画が大きい場合は、先に工程02で切り取ってから試すか、PCでお試しください。", "err");
           })
           .then(function(){
             state.generating = false;
             generateBtn.disabled = false;
           });
-
-        function runFF(ff, args, dur, inName, hasOverlay){
-          var full = args.concat([
-            "-t", String(dur),
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "160k",
-            "-movflags", "+faststart",
-            "output.mp4"
-          ]);
-          return ff.run.apply(ff, full).then(function(){
-            var data = ff.FS("readFile", "output.mp4");
-            try{ ff.FS("unlink", inName); }catch(e){}
-            try{ ff.FS("unlink", "output.mp4"); }catch(e){}
-            if(hasOverlay){ try{ ff.FS("unlink", "overlay.png"); }catch(e){} }
-            if(!data || data.length === 0) throw new Error("出力が空でした");
-            return data;
-          });
-        }
       });
 
       discardBtn.addEventListener("click", function(){
