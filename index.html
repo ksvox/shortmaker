@@ -184,10 +184,13 @@
         display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;
       }
       .phone .pv-catch{
-        margin-top:8px;color:#fff;font-weight:700;font-size:14.5px;line-height:1.5;white-space:pre-line;word-break:break-word;
+        color:#fff;font-weight:700;font-size:14.5px;line-height:1.5;white-space:pre-line;word-break:break-word;
         text-shadow:0 2px 7px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.9);
       }
-      .phone .pv-catch:empty,.phone .pv-title:empty{display:none}
+      .phone .pv-catch:empty{display:none}
+      .phone .catch-layer{
+        position:absolute;left:0;right:0;top:66%;padding:0 16px;text-align:center;pointer-events:none;z-index:4;
+      }
       .phone .safe-note{
         position:absolute;left:0;right:0;bottom:8px;text-align:center;
         font-family:var(--font-mono);font-size:9.5px;color:rgba(255,255,255,.5);letter-spacing:.14em;pointer-events:none;
@@ -375,7 +378,7 @@
       <section class="step locked" id="step2">
         <span class="step-tag"><span class="no">工程 02</span>寸法を決める</span>
         <h2 class="step-name">切り取り</h2>
-        <p class="step-desc">プレビューを見ながら、切り取る開始位置と長さを決めます。タイトルとキャッチは、Shortsの画面で空いている<b>上部の帯</b>にまとめて入ります。</p>
+        <p class="step-desc">プレビューを見ながら、切り取る開始位置と長さを決めます。タイトルは<b>上部の帯</b>に、キャッチは<b>動画のすぐ下</b>に入ります。</p>
 
         <div class="lockable">
           <div class="mat">
@@ -386,7 +389,9 @@
               <div class="empty-msg" id="emptyMsg">動画を読み込むと<br />ここにプレビューが出ます</div>
               <div class="pv-badge" id="pvBadge"></div>
               <div class="txt-layer" id="txtLayer">
-                <div class="pv-title"><div class="pv-title-line" id="pvTitle1"></div><div class="pv-title-line" id="pvTitle2"></div></div>
+                <div class="pv-title"><div class="pv-title-line" id="pvTitle1"></div><div class="pv-title-line" id="pvTitle2"></div><div class="pv-title-line" id="pvTitle3"></div></div>
+              </div>
+              <div class="catch-layer" id="catchLayer">
                 <div class="pv-catch" id="pvCatch"></div>
               </div>
               <div class="safe-note">BOTTOM = SHORTS UI AREA</div>
@@ -429,11 +434,11 @@
 
           <label class="f-label">フェード（映像＋音声）</label>
           <div class="dur-chips" role="group" aria-label="フェードの長さ">
-            <button type="button" class="chip fade-chip" data-fade="0.3">0.3秒</button>
-            <button type="button" class="chip fade-chip on" data-fade="0.5">0.5秒</button>
-            <button type="button" class="chip fade-chip" data-fade="1">1秒</button>
+            <button type="button" class="chip fade-chip on" data-fade="1">1秒</button>
+            <button type="button" class="chip fade-chip" data-fade="2">2秒</button>
+            <button type="button" class="chip fade-chip" data-fade="3">3秒</button>
           </div>
-          <p class="fade-note">切り出しの最初と最後に、映像と音声の両方へフェードイン／フェードアウトが付きます。歌唱の途中からでも、ふわりと入り、ふわりと終わります。</p>
+          <p class="fade-note">切り出しの最初と最後に、映像と音声の両方へフェードイン／フェードアウトが付きます。歌唱の途中からでも、ふわりと入り、ふわりと終わります。プレビュー再生でも、選んだ長さのまま再現されます。</p>
         </div>
       </section>
 
@@ -443,7 +448,7 @@
       <section class="step locked" id="step3">
         <span class="step-tag"><span class="no">工程 03</span>文字をのせる</span>
         <h2 class="step-name">タイトルとキャッチコピー</h2>
-        <p class="step-desc">タイトルは2行に分けて、各行ごとに大きさと色を変えられます。バッジも含め、すべて上部のぼかし帯に表示され、入力すると工程02のプレビューにすぐ反映されます。</p>
+        <p class="step-desc">タイトルは3行に分けて、各行ごとに大きさと色を変えられます。キャッチコピーは動画のすぐ下に表示され、2行共通で大きさを変えられます。入力すると工程02のプレビューにすぐ反映されます。</p>
 
         <div class="lockable">
           <label class="f-label">バッジ</label>
@@ -505,6 +510,30 @@
             </div>
           </div>
 
+          <div class="title-block">
+            <label class="f-label" for="title3">タイトル（3行目）</label>
+            <input type="text" id="title3" maxlength="50" placeholder="例：とっておきの一曲" autocomplete="off" />
+            <div class="char-count"><span id="title3Count">0</span> / 50</div>
+            <div class="style-controls">
+              <div class="ctl-row">
+                <span class="ctl-label">大きさ</span>
+                <input type="range" id="title3Size" min="70" max="140" step="5" value="85" aria-label="タイトル3行目の文字の大きさ" />
+                <span class="size-val" id="title3SizeVal">85%</span>
+              </div>
+              <div class="ctl-row">
+                <span class="ctl-label">色</span>
+                <input type="color" id="title3Color" value="#ffffff" class="color-picker" aria-label="タイトル3行目の文字色" />
+                <div class="swatches" data-for="title3Color">
+                  <button type="button" class="swatch" data-color="#ffffff" style="background:#ffffff" aria-label="白"></button>
+                  <button type="button" class="swatch" data-color="#ffe600" style="background:#ffe600" aria-label="黄"></button>
+                  <button type="button" class="swatch" data-color="#e60012" style="background:#e60012" aria-label="赤"></button>
+                  <button type="button" class="swatch" data-color="#111111" style="background:#111111" aria-label="黒"></button>
+                  <button type="button" class="swatch" data-color="#7dd3fc" style="background:#7dd3fc" aria-label="水色"></button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <label class="f-label" for="catch1">キャッチコピー（1行目）</label>
           <input type="text" id="catch1" maxlength="24" placeholder="例：鳥肌ハモリ、聴いてください" autocomplete="off" />
           <div class="char-count"><span id="catch1Count">0</span> / 24</div>
@@ -512,7 +541,14 @@
           <label class="f-label" for="catch2">キャッチコピー（2行目）</label>
           <input type="text" id="catch2" maxlength="24" placeholder="例：指導歴30年のコーチと弟子たち" autocomplete="off" />
           <div class="char-count"><span id="catch2Count">0</span> / 24</div>
-          <p class="hint">キャッチは2行とも空欄でも大丈夫です。その場合はタイトルだけが上部に出ます。</p>
+          <div class="style-controls">
+            <div class="ctl-row">
+              <span class="ctl-label">大きさ</span>
+              <input type="range" id="catchSize" min="50" max="120" step="5" value="100" aria-label="キャッチコピーの文字の大きさ" />
+              <span class="size-val" id="catchSizeVal">100%</span>
+            </div>
+          </div>
+          <p class="hint">キャッチは動画のすぐ下に出ます。2行とも空欄でも大丈夫です。その場合は表示されません。大きさは2行共通です。</p>
         </div>
 
         <div class="preset-box" id="presetBox">
@@ -521,7 +557,7 @@
               <h3>設定セット</h3>
               <span class="preset-tag">LOCAL ONLY</span>
             </div>
-            <p class="preset-desc">今の設定（フェード・バッジ・タイトルの大きさと色・キャッチコピー）を名前を付けて保存できます。保存先はこの端末のブラウザ内だけです。次回は一覧から「適用」を押すだけで呼び出せます。</p>
+            <p class="preset-desc">今の設定（フェード・バッジ・タイトル3行の大きさと色・キャッチコピーとその大きさ）を名前を付けて保存できます。保存先はこの端末のブラウザ内だけです。次回は一覧から「適用」を押すだけで呼び出せます。</p>
             <label class="f-label" for="presetName" style="margin-top:4px">セット名</label>
             <div class="preset-save-row">
               <input type="text" id="presetName" maxlength="30" placeholder="例：アーカイブ用、新作カバー用" autocomplete="off" />
@@ -601,8 +637,8 @@
           startRange=$("startRange"), startTcLabel=$("startTcLabel"),
           nudgeBack=$("nudgeBack"), nudgeFwd=$("nudgeFwd"), setFromPlayhead=$("setFromPlayhead"),
           durRange=$("durRange"), durChips=Array.prototype.slice.call(document.querySelectorAll(".chip[data-dur]")), fadeChips=Array.prototype.slice.call(document.querySelectorAll(".fade-chip")), badgeOpts=Array.prototype.slice.call(document.querySelectorAll(".badge-opt")),
-          title1=$("title1"), title2=$("title2"), title1Size=$("title1Size"), title2Size=$("title2Size"), title1Color=$("title1Color"), title2Color=$("title2Color"), catch1=$("catch1"), catch2=$("catch2"),
-          pvTitle1=$("pvTitle1"), pvTitle2=$("pvTitle2"), pvCatch=$("pvCatch"), pvBadge=$("pvBadge"), txtLayer=$("txtLayer"),
+          title1=$("title1"), title2=$("title2"), title3=$("title3"), title1Size=$("title1Size"), title2Size=$("title2Size"), title3Size=$("title3Size"), title1Color=$("title1Color"), title2Color=$("title2Color"), title3Color=$("title3Color"), catch1=$("catch1"), catch2=$("catch2"), catchSize=$("catchSize"),
+          pvTitle1=$("pvTitle1"), pvTitle2=$("pvTitle2"), pvTitle3=$("pvTitle3"), pvCatch=$("pvCatch"), pvBadge=$("pvBadge"), txtLayer=$("txtLayer"), catchLayer=$("catchLayer"),
           generateBtn=$("generateBtn"), progressBox=$("progressBox"), progressFill=$("progressFill"),
           progressMsg=$("progressMsg"), genStatus=$("genStatus"),
           resultBox=$("resultBox"), resultVideo=$("resultVideo"), downloadBtn=$("downloadBtn"),
@@ -610,7 +646,7 @@
 
       var state = {
         file: null, objectUrl: null, duration: 0,
-        start: 0, dur: 30, fadeDur: 0.5, badge: "none", playing: false, segCheck: null,
+        start: 0, dur: 30, fadeDur: 1, badge: "none", playing: false, segCheck: null,
         resultUrl: null, generating: false
       };
 
@@ -704,9 +740,39 @@
       nudgeFwd.addEventListener("click", function(){ state.start = state.start+1; refreshTrimUI(); seekTo(state.start); });
       setFromPlayhead.addEventListener("click", function(){ state.start = Math.floor(fgVideo.currentTime*10)/10; refreshTrimUI(); });
 
-      /* ---------- segment preview playback ---------- */
+      /* ---------- segment preview playback (with fade preview) ---------- */
       function stopSegCheck(){
         if(state.segCheck){ clearInterval(state.segCheck); state.segCheck = null; }
+      }
+      function fadeFactor(){
+        // 0..1 multiplier matching the export fade (linear, same for video + audio)
+        var fd = state.fadeDur || 0;
+        if(fd <= 0) return 1;
+        var t = fgVideo.currentTime - state.start;
+        if(t < 0) t = 0;
+        var remain = state.dur - t;
+        var f = 1;
+        if(t < fd) f = Math.min(f, t / fd);
+        if(remain < fd) f = Math.min(f, Math.max(0, remain) / fd);
+        return Math.max(0, Math.min(1, f));
+      }
+      function applyFadePreview(){
+        var f = state.playing ? fadeFactor() : 1;
+        var op = String(f);
+        bgVideo.style.opacity = op;
+        fgVideo.style.opacity = op;
+        txtLayer.style.opacity = op;
+        catchLayer.style.opacity = op;
+        pvBadge.style.opacity = op;
+        try{ fgVideo.volume = f; }catch(e){}
+      }
+      function resetFadePreview(){
+        bgVideo.style.opacity = "";
+        fgVideo.style.opacity = "";
+        txtLayer.style.opacity = "";
+        catchLayer.style.opacity = "";
+        pvBadge.style.opacity = "";
+        try{ fgVideo.volume = 1; }catch(e){}
       }
       function setPlayIcon(){
         playBtn.textContent = state.playing ? "❚❚" : "▶";
@@ -715,7 +781,7 @@
         if(!state.file) return;
         if(state.playing){
           fgVideo.pause(); bgVideo.pause();
-          state.playing = false; stopSegCheck(); setPlayIcon();
+          state.playing = false; stopSegCheck(); setPlayIcon(); resetFadePreview();
           return;
         }
         if(fgVideo.currentTime < state.start || fgVideo.currentTime >= state.start + state.dur - 0.05){
@@ -725,14 +791,17 @@
         if(p1 && p1.catch) p1.catch(function(){});
         if(p2 && p2.catch) p2.catch(function(){});
         state.playing = true; setPlayIcon();
+        applyFadePreview();
         stopSegCheck();
         state.segCheck = setInterval(function(){
           if(fgVideo.currentTime >= state.start + state.dur){
             fgVideo.pause(); bgVideo.pause();
-            state.playing = false; stopSegCheck(); setPlayIcon();
+            state.playing = false; stopSegCheck(); setPlayIcon(); resetFadePreview();
             seekTo(state.start);
+          } else {
+            applyFadePreview();
           }
-        }, 120);
+        }, 40);
       });
       fgVideo.addEventListener("timeupdate", function(){
         nowTc.textContent = fmt(fgVideo.currentTime, true);
@@ -745,7 +814,7 @@
         }
       });
       fgVideo.addEventListener("pause", function(){
-        if(state.playing){ bgVideo.pause(); state.playing = false; stopSegCheck(); setPlayIcon(); }
+        if(state.playing){ bgVideo.pause(); state.playing = false; stopSegCheck(); setPlayIcon(); resetFadePreview(); }
       });
 
       /* ---------- file loading ---------- */
@@ -781,6 +850,7 @@
           }
           setStepsEnabled(true);
           refreshTrimUI();
+          layoutCatch();
           seekTo(0);
           setStatus(loadStatus, "読み込みました。工程02で切り取る場所を決めてください。", "ok");
         });
@@ -859,17 +929,34 @@
           ? "0 1px 6px rgba(255,255,255,.95),0 0 3px rgba(255,255,255,.9)"
           : "0 2px 8px rgba(0,0,0,.85),0 0 3px rgba(0,0,0,.9)";
       }
+      function layoutCatch(){
+        if(!catchLayer || !fgVideo) return;
+        var phone = fgVideo.parentNode;
+        if(!phone || !phone.clientHeight) return;
+        var ph = phone.clientHeight, pw = phone.clientWidth;
+        var vw = fgVideo.videoWidth || 0, vh = fgVideo.videoHeight || 0;
+        var dispH = (vw > 0 && vh > 0) ? Math.min(pw * vh / vw, ph) : pw * 9 / 16;
+        var top = (ph + dispH) / 2 + Math.max(4, Math.round(ph * 0.015));
+        var ch = pvCatch.offsetHeight || 0;
+        if(ch > 0 && top + ch > ph - 4) top = Math.max(0, ph - ch - 4);
+        catchLayer.style.top = top + "px";
+      }
       function syncText(){
         applyLinePreview(pvTitle1, title1.value.trim(), parseInt(title1Size.value,10) || 100, title1Color.value);
         applyLinePreview(pvTitle2, title2.value.trim(), parseInt(title2Size.value,10) || 85, title2Color.value);
+        applyLinePreview(pvTitle3, title3.value.trim(), parseInt(title3Size.value,10) || 85, title3Color.value);
         var lines = [catch1.value.trim(), catch2.value.trim()].filter(function(s){ return s.length > 0; });
         pvCatch.textContent = lines.join("\n");
+        pvCatch.style.fontSize = (14.5 * ((parseInt(catchSize.value,10) || 100) / 100)) + "px";
         $("title1Count").textContent = title1.value.length;
         $("title2Count").textContent = title2.value.length;
+        $("title3Count").textContent = title3.value.length;
         $("title1SizeVal").textContent = title1Size.value + "%";
         $("title2SizeVal").textContent = title2Size.value + "%";
+        $("title3SizeVal").textContent = title3Size.value + "%";
         $("catch1Count").textContent = catch1.value.length;
         $("catch2Count").textContent = catch2.value.length;
+        $("catchSizeVal").textContent = catchSize.value + "%";
         var bd = BADGES[state.badge];
         if(bd){
           pvBadge.textContent = bd.label;
@@ -882,8 +969,10 @@
           pvBadge.textContent = "";
           txtLayer.classList.remove("has-badge");
         }
+        layoutCatch();
       }
-      [title1, title2, catch1, catch2, title1Size, title2Size, title1Color, title2Color].forEach(function(el){ el.addEventListener("input", syncText); });
+      [title1, title2, title3, catch1, catch2, title1Size, title2Size, title3Size, title1Color, title2Color, title3Color, catchSize].forEach(function(el){ el.addEventListener("input", syncText); });
+      window.addEventListener("resize", layoutCatch);
       Array.prototype.slice.call(document.querySelectorAll(".swatches")).forEach(function(sw){
         var targetId = sw.getAttribute("data-for");
         sw.querySelectorAll(".swatch").forEach(function(btn){
@@ -921,16 +1010,20 @@
           dur: state.dur,
           title1Size: String(title1Size.value),
           title2Size: String(title2Size.value),
+          title3Size: String(title3Size.value),
           title1Color: String(title1Color.value),
           title2Color: String(title2Color.value),
+          title3Color: String(title3Color.value),
           catch1: catch1.value,
-          catch2: catch2.value
+          catch2: catch2.value,
+          catchSize: String(catchSize.value)
         };
       }
       function applyPresetData(d){
         if(!d) return;
         if(typeof d.fadeDur !== "undefined" && d.fadeDur !== null){
-          state.fadeDur = parseFloat(d.fadeDur) || 0.5;
+          var fdv = parseFloat(d.fadeDur);
+          state.fadeDur = (fdv === 1 || fdv === 2 || fdv === 3) ? fdv : 1;
           fadeChips.forEach(function(x){ x.classList.toggle("on", parseFloat(x.getAttribute("data-fade")) === state.fadeDur); });
         }
         if(d.badge && BADGES.hasOwnProperty(d.badge)){
@@ -943,10 +1036,13 @@
         }
         if(d.title1Size) title1Size.value = d.title1Size;
         if(d.title2Size) title2Size.value = d.title2Size;
+        if(d.title3Size) title3Size.value = d.title3Size;
         if(d.title1Color) title1Color.value = d.title1Color;
         if(d.title2Color) title2Color.value = d.title2Color;
+        if(d.title3Color) title3Color.value = d.title3Color;
         if(typeof d.catch1 !== "undefined") catch1.value = d.catch1 || "";
         if(typeof d.catch2 !== "undefined") catch2.value = d.catch2 || "";
+        if(d.catchSize) catchSize.value = d.catchSize;
         refreshTrimUI();
         syncText();
       }
@@ -1067,7 +1163,8 @@
           var badge = (typeof BADGES !== "undefined") ? BADGES[state.badge] : null;
           var titleSpecs = [
             { text: title1.value.trim(), scale: (parseInt(title1Size.value,10)||100)/100, color: title1Color.value },
-            { text: title2.value.trim(), scale: (parseInt(title2Size.value,10)||85)/100, color: title2Color.value }
+            { text: title2.value.trim(), scale: (parseInt(title2Size.value,10)||85)/100, color: title2Color.value },
+            { text: title3.value.trim(), scale: (parseInt(title3Size.value,10)||85)/100, color: title3Color.value }
           ].filter(function(t){ return t.text; });
           var catches = [catch1.value.trim(), catch2.value.trim()].filter(function(t){ return t; });
           if(titleSpecs.length === 0 && catches.length === 0 && !badge) return null;
@@ -1089,14 +1186,13 @@
             }
             lines.forEach(function(l){ renderLines.push({ text: l, size: size, color: spec.color }); });
           });
-          var cSize = 50, cLH = Math.round(cSize * 1.45);
+          var cSize = Math.round(50 * ((parseInt(catchSize.value,10)||100)/100)), cLH = Math.round(cSize * 1.45);
           ctx.font = '700 ' + cSize + 'px ' + FONT;
           var cLines = [];
           catches.forEach(function(c){ cLines = cLines.concat(wrapLines(ctx, c, maxW, 2)); });
 
           var blockH = 0;
           renderLines.forEach(function(l){ blockH += Math.round(l.size * 1.32); });
-          if(cLines.length) blockH += (renderLines.length ? 14 : 0) + cLines.length * cLH;
 
           var topY = badge ? 128 : 92;
           // --- badge (top-right stamp, drawn above the title plate so it never overlaps the title) ---
@@ -1118,7 +1214,7 @@
             ctx.fillText(badge.label, 0, 2);
             ctx.restore();
           }
-          // readability plate behind title + catch
+          // readability plate behind title
           if(blockH > 0){
             ctx.fillStyle = "rgba(10,8,8,0.42)";
             roundRect(ctx, 34, topY - 34, W - 68, blockH + 68, 30);
@@ -1140,12 +1236,21 @@
             ctx.fillText(l.text, W/2, y);
             y += Math.round(l.size * 1.32);
           });
-          ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
           if(cLines.length){
-            if(renderLines.length) y += 14;
+            // catch copy sits directly under the foreground video, on the lower blur band
+            var fgH = (fgVideo.videoWidth > 0 && fgVideo.videoHeight > 0) ? Math.min(W * fgVideo.videoHeight / fgVideo.videoWidth, H) : W * 9 / 16;
+            var catchBlockH = cLines.length * cLH;
+            var catchY = (H + fgH) / 2 + 28;
+            if(catchY + catchBlockH > H - 36) catchY = Math.max(0, H - 36 - catchBlockH);
+            ctx.shadowColor = "transparent"; ctx.shadowBlur = 0; ctx.shadowOffsetY = 0;
+            ctx.fillStyle = "rgba(10,8,8,0.42)";
+            roundRect(ctx, 34, catchY - 24, W - 68, catchBlockH + 48, 30);
+            ctx.fill();
+            ctx.shadowColor = "rgba(0,0,0,0.9)"; ctx.shadowBlur = 10; ctx.shadowOffsetY = 3;
             ctx.fillStyle = "#ffffff";
             ctx.font = '700 ' + cSize + 'px ' + FONT;
-            cLines.forEach(function(l){ ctx.fillText(l, W/2, y); y += cLH; });
+            var cy = catchY;
+            cLines.forEach(function(l){ ctx.fillText(l, W/2, cy); cy += cLH; });
           }
           return new Promise(function(res){
             if(cv.toBlob){ cv.toBlob(function(b){ res(b); }, "image/png"); }
