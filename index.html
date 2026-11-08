@@ -378,7 +378,7 @@
       <section class="step locked" id="step2">
         <span class="step-tag"><span class="no">工程 02</span>寸法を決める</span>
         <h2 class="step-name">切り取り</h2>
-        <p class="step-desc">プレビューを見ながら、切り取る開始位置と長さを決めます。タイトルは<b>上部の帯</b>に、キャッチは<b>動画のすぐ下</b>に入ります。</p>
+        <p class="step-desc">プレビューを見ながら、切り取る開始位置と長さを決めます。タイトルは<b>上部の帯の中央</b>に、キャッチは<b>動画のすぐ下</b>に入ります。</p>
 
         <div class="lockable">
           <div class="mat">
@@ -850,6 +850,7 @@
           }
           setStepsEnabled(true);
           refreshTrimUI();
+          layoutTop();
           layoutCatch();
           seekTo(0);
           setStatus(loadStatus, "読み込みました。工程02で切り取る場所を決めてください。", "ok");
@@ -941,6 +942,27 @@
         if(ch > 0 && top + ch > ph - 4) top = Math.max(0, ph - ch - 4);
         catchLayer.style.top = top + "px";
       }
+      function layoutTop(){
+        // centre the badge + title group in the top blur band, based on the
+        // actual title height (which follows the per-line size sliders)
+        if(!txtLayer || !fgVideo) return;
+        var phone = fgVideo.parentNode;
+        if(!phone || !phone.clientHeight) return;
+        var ph = phone.clientHeight, pw = phone.clientWidth;
+        var vw = fgVideo.videoWidth || 0, vh = fgVideo.videoHeight || 0;
+        var dispH = (vw > 0 && vh > 0) ? Math.min(pw * vh / vw, ph) : pw * 9 / 16;
+        var bandH = (ph - dispH) / 2;
+        var hasBadge = !!(typeof BADGES !== "undefined" && BADGES[state.badge]);
+        var titleBox = pvTitle1 ? pvTitle1.parentNode : null;
+        var titleH = (titleBox && titleBox.offsetHeight) || 0;
+        var badgeZone = hasBadge ? 24 : 0;
+        var groupH = badgeZone + titleH;
+        if(hasBadge && titleH === 0) groupH = 24;
+        var groupTop = Math.round((bandH - groupH) / 2);
+        if(groupTop < 7) groupTop = 7;
+        txtLayer.style.paddingTop = (groupTop + badgeZone) + "px";
+        if(hasBadge) pvBadge.style.top = groupTop + "px";
+      }
       function syncText(){
         applyLinePreview(pvTitle1, title1.value.trim(), parseInt(title1Size.value,10) || 100, title1Color.value);
         applyLinePreview(pvTitle2, title2.value.trim(), parseInt(title2Size.value,10) || 85, title2Color.value);
@@ -969,10 +991,11 @@
           pvBadge.textContent = "";
           txtLayer.classList.remove("has-badge");
         }
+        layoutTop();
         layoutCatch();
       }
       [title1, title2, title3, catch1, catch2, title1Size, title2Size, title3Size, title1Color, title2Color, title3Color, catchSize].forEach(function(el){ el.addEventListener("input", syncText); });
-      window.addEventListener("resize", layoutCatch);
+      window.addEventListener("resize", function(){ layoutCatch(); layoutTop(); });
       Array.prototype.slice.call(document.querySelectorAll(".swatches")).forEach(function(sw){
         var targetId = sw.getAttribute("data-for");
         sw.querySelectorAll(".swatch").forEach(function(btn){
@@ -1194,13 +1217,21 @@
           var blockH = 0;
           renderLines.forEach(function(l){ blockH += Math.round(l.size * 1.32); });
 
-          var topY = badge ? 128 : 92;
+          // centre the badge + title group in the top blur band
+          var fgH2 = (fgVideo.videoWidth > 0 && fgVideo.videoHeight > 0) ? Math.min(W * fgVideo.videoHeight / fgVideo.videoWidth, H) : W * 9 / 16;
+          var topBandH = (H - fgH2) / 2;
+          var badgeZone = badge ? 94 : 0;
+          var groupH = badgeZone + blockH;
+          if(badge && blockH === 0) groupH = 60;
+          var groupTop = Math.round((topBandH - groupH) / 2);
+          if(groupTop < 28) groupTop = 28;
+          var topY = groupTop + badgeZone;
           // --- badge (top-right stamp, drawn above the title plate so it never overlaps the title) ---
           if(badge){
             ctx.save();
             ctx.font = '800 36px ' + FONT;
             var bw = Math.ceil(ctx.measureText(badge.label).width) + 56;
-            var bh = 60, bx = W - bw - 36, by = 34;
+            var bh = 60, bx = W - bw - 36, by = groupTop;
             ctx.translate(bx + bw/2, by + bh/2);
             ctx.rotate(0.055);
             ctx.shadowColor = "rgba(0,0,0,0.45)"; ctx.shadowBlur = 12; ctx.shadowOffsetY = 4;
