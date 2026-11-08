@@ -907,7 +907,7 @@
           layoutCatch();
           seekTo(0);
           setStatus(loadStatus, "読み込みました。工程02で切り取る場所を決めてください。", "ok");
-          loadFFmpeg(null).catch(function(){});
+          warmUpEngine();
         });
         fgVideo.addEventListener("error", function onErr(){
           fgVideo.removeEventListener("error", onErr);
@@ -1392,7 +1392,7 @@
             cutProgressFill.style.width = Math.min(97, Math.round(ratio*100)) + "%";
             cutProgressMsg.textContent = "切り取り中… " + Math.round(ratio*100) + "%";
           }
-        }).then(function(data){
+        }, function(phaseMsg){ cutProgressMsg.textContent = phaseMsg; }).then(function(data){
           var blob = new Blob([data.buffer], { type: "video/mp4" });
           var tname = "trimmed_" + dur + "s.mp4";
           var tfile;
@@ -1427,41 +1427,48 @@
       /* ---------- generation with ffmpeg.wasm ---------- */
       // Single-thread core (@ffmpeg/core-st): works without SharedArrayBuffer,
       // which this hosting cannot provide (no COOP/COEP headers).
-      var ffmpeg = null, ffmpegLoadPromise = null, ffProgressCb = null;
+      // NOTE: a core-st instance runs only ONE command. After main() exits, the
+      // runtime is terminated and further runs on the same instance throw
+      // "Program terminated with exit(0)" / "can only run one command at a
+      // time". So every conversion uses a fresh instance; a pre-loaded,
+      // never-run spare from the warm-up keeps the first conversion fast.
+      var spareEngine = null, spareLoading = null, ffProgressCb = null;
       var FFMPEG_CORE_URL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js";
-      function resetFFmpeg(){ ffmpeg = null; ffmpegLoadPromise = null; }
-      function loadFFmpeg(onProgress){
+      function createEngine(onProgress){
         if(onProgress) ffProgressCb = onProgress;
-        if(ffmpeg && ffmpeg.isLoaded && ffmpeg.isLoaded()) return Promise.resolve(ffmpeg);
-        if(ffmpegLoadPromise) return ffmpegLoadPromise;
         if(typeof FFmpeg === "undefined" || !FFmpeg.createFFmpeg){
           return Promise.reject(new Error("変換エンジンを読み込めませんでした。通信環境を確認して、もう一度お試しください。"));
         }
         var inst = FFmpeg.createFFmpeg({ log: false, corePath: FFMPEG_CORE_URL, mainName: "main" });
         inst.setProgress(function(p){ if(ffProgressCb) ffProgressCb(p ? p.ratio : 0); });
-        ffmpeg = inst;
-        ffmpegLoadPromise = inst.load().then(function(){
-          return inst;
-        }).catch(function(err){
-          // never keep a half-loaded engine: the next attempt must load again
-          if(ffmpeg === inst) ffmpeg = null;
-          ffmpegLoadPromise = null;
-          throw err;
-        });
-        return ffmpegLoadPromise;
+        return inst.load().then(function(){ return inst; });
       }
-      function runConversion(inputFile, inName, extraFiles, args, outName, onProgress){
+      function warmUpEngine(){
+        if(spareEngine || spareLoading) return;
+        spareLoading = createEngine(null).then(function(inst){
+          spareEngine = inst; spareLoading = null;
+        }).catch(function(){ spareLoading = null; });
+      }
+      function takeEngine(onProgress){
+        if(onProgress) ffProgressCb = onProgress;
+        if(spareEngine){ var inst = spareEngine; spareEngine = null; return Promise.resolve(inst); }
+        if(spareLoading){ return spareLoading.then(function(){ return takeEngine(onProgress); }); }
+        return createEngine(onProgress);
+      }
+      function runConversion(inputFile, inName, extraFiles, args, outName, onProgress, onPhase){
         function once(){
-          return loadFFmpeg(onProgress).then(function(ff){
-            if(ff.isLoaded && !ff.isLoaded()){
-              return ff.load().then(function(){ return ff; });
-            }
-            return ff;
-          }).then(function(ff){
+          return takeEngine(onProgress).then(function(ff){
+            if(onPhase) onPhase("素材をエンジンに読み込んでいます…");
             return inputFile.arrayBuffer().then(function(buf){
               ff.FS("writeFile", inName, new Uint8Array(buf));
               (extraFiles || []).forEach(function(xf){ ff.FS("writeFile", xf.name, xf.data); });
-              return ff.run.apply(ff, args.concat([outName])).then(function(){
+              if(onPhase) onPhase("変換しています…");
+              return ff.run.apply(ff, args.concat([outName])).then(function(){ return null; }, function(runErr){
+                // core-st may surface exit(0) even when the output was fully written
+                var m = (runErr && runErr.message) || "";
+                if(/exit\(0\)|terminated/i.test(m)) return null;
+                throw runErr;
+              }).then(function(){
                 var data = ff.FS("readFile", outName);
                 try{ ff.FS("unlink", inName); }catch(e){}
                 try{ ff.FS("unlink", outName); }catch(e){}
@@ -1474,8 +1481,7 @@
         }
         return once().catch(function(err){
           var msg = (err && err.message) || "";
-          if(/not ready|SharedArrayBuffer|proxy_main/i.test(msg)){
-            resetFFmpeg();
+          if(/not ready|SharedArrayBuffer|proxy_main|one command at a time/i.test(msg)){
             return once();
           }
           throw err;
@@ -1535,7 +1541,7 @@
                   progressFill.style.width = Math.min(97, Math.round(ratio*100)) + "%";
                   progressMsg.textContent = "生成中… " + Math.round(ratio*100) + "%";
                 }
-              });
+              }, function(phaseMsg){ progressMsg.textContent = phaseMsg; });
             });
           })
           .then(function(out){
