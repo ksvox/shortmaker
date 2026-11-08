@@ -1437,7 +1437,7 @@
         if(typeof FFmpeg === "undefined" || !FFmpeg.createFFmpeg){
           return Promise.reject(new Error("変換エンジンを読み込めませんでした。通信環境を確認して、もう一度お試しください。"));
         }
-        var inst = FFmpeg.createFFmpeg({ log: false, corePath: FFMPEG_CORE_URL });
+        var inst = FFmpeg.createFFmpeg({ log: false, corePath: FFMPEG_CORE_URL, mainName: "main" });
         inst.setProgress(function(p){ if(ffProgressCb) ffProgressCb(p ? p.ratio : 0); });
         ffmpeg = inst;
         ffmpegLoadPromise = inst.load().then(function(){
@@ -1474,7 +1474,7 @@
         }
         return once().catch(function(err){
           var msg = (err && err.message) || "";
-          if(/not ready|SharedArrayBuffer/i.test(msg)){
+          if(/not ready|SharedArrayBuffer|proxy_main/i.test(msg)){
             resetFFmpeg();
             return once();
           }
