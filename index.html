@@ -301,6 +301,9 @@
       .swatch{width:26px;height:26px;border-radius:50%;border:2px solid rgba(33,29,26,.55);cursor:pointer;padding:0;flex-shrink:0}
       .swatch:active{transform:scale(.92)}
       .fade-note{font-size:12.5px;color:var(--ink-2);margin:6px 0 0}
+      .endbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px}
+      .btn.end{background:var(--ink);color:#fff;border-color:var(--ink)}
+      .endbar-note{font-size:12px;color:var(--ink-2)}
       /* ---------- preset sets ---------- */
       .preset-box{margin-top:22px;border:2px solid var(--ink);border-radius:12px;background:var(--paper);padding:14px 14px 12px;box-shadow:3px 3px 0 rgba(33,29,26,.14)}
       .preset-head{display:flex;align-items:center;gap:8px;margin-bottom:4px}
@@ -349,6 +352,10 @@
           <span><i>03</i> 文字入れ</span>→
           <span><i>04</i> 書き出し</span>→
           <span><i>05</i> 投稿</span>
+        </div>
+        <div class="endbar">
+          <button type="button" class="btn end" id="endBtn">■ 終了する</button>
+          <span class="endbar-note">変換エンジンのメモリを消去して、最初から作り直せます（タイトルや設定は残ります）</span>
         </div>
       </header>
 
@@ -670,7 +677,7 @@
           resultMeta=$("resultMeta"), discardBtn=$("discardBtn"),
           seekBackBtn=$("seekBackBtn"), seekFwdBtn=$("seekFwdBtn"), seekRange=$("seekRange"),
           cutBtn=$("cutBtn"), restoreBtn=$("restoreBtn"), cutProgressBox=$("cutProgressBox"), cutProgressFill=$("cutProgressFill"),
-          cutProgressMsg=$("cutProgressMsg"), cutStatus=$("cutStatus");
+          cutProgressMsg=$("cutProgressMsg"), cutStatus=$("cutStatus"), endBtn=$("endBtn");
 
       var state = {
         file: null, objectUrl: null, duration: 0,
@@ -1432,7 +1439,7 @@
       // "Program terminated with exit(0)" / "can only run one command at a
       // time". So every conversion uses a fresh instance; a pre-loaded,
       // never-run spare from the warm-up keeps the first conversion fast.
-      var spareEngine = null, spareLoading = null, ffProgressCb = null;
+      var spareEngine = null, spareLoading = null, ffProgressCb = null, liveEngines = [], engineEpoch = 0;
       var FFMPEG_CORE_URL = "https://cdn.jsdelivr.net/npm/@ffmpeg/core-st@0.11.1/dist/ffmpeg-core.js";
       function createEngine(onProgress){
         if(onProgress) ffProgressCb = onProgress;
@@ -1440,14 +1447,32 @@
           return Promise.reject(new Error("変換エンジンを読み込めませんでした。通信環境を確認して、もう一度お試しください。"));
         }
         var inst = FFmpeg.createFFmpeg({ log: false, corePath: FFMPEG_CORE_URL, mainName: "main" });
+        liveEngines.push(inst);
         inst.setProgress(function(p){ if(ffProgressCb) ffProgressCb(p ? p.ratio : 0); });
-        return inst.load().then(function(){ return inst; });
+        var p = inst.load().then(function(){ return inst; });
+        p.catch(function(){ releaseEngine(inst); });
+        return p;
+      }
+      function releaseEngine(inst){
+        if(!inst) return;
+        var i = liveEngines.indexOf(inst);
+        if(i >= 0) liveEngines.splice(i, 1);
+        if(spareEngine === inst) spareEngine = null;
+        try{ inst.exit(); }catch(e){}
+      }
+      function endAllEngines(){
+        engineEpoch++;
+        spareEngine = null;
+        spareLoading = null;
+        liveEngines.slice().forEach(function(inst){ releaseEngine(inst); });
       }
       function warmUpEngine(){
         if(spareEngine || spareLoading) return;
+        var epoch = engineEpoch;
         spareLoading = createEngine(null).then(function(inst){
+          if(epoch !== engineEpoch){ releaseEngine(inst); return; }
           spareEngine = inst; spareLoading = null;
-        }).catch(function(){ spareLoading = null; });
+        }).catch(function(){ if(epoch === engineEpoch) spareLoading = null; });
       }
       function takeEngine(onProgress){
         if(onProgress) ffProgressCb = onProgress;
@@ -1457,7 +1482,9 @@
       }
       function runConversion(inputFile, inName, extraFiles, args, outName, onProgress, onPhase){
         function once(){
+          var usedInst = null;
           return takeEngine(onProgress).then(function(ff){
+            usedInst = ff;
             if(onPhase) onPhase("素材をエンジンに読み込んでいます…");
             return inputFile.arrayBuffer().then(function(buf){
               ff.FS("writeFile", inName, new Uint8Array(buf));
@@ -1477,20 +1504,76 @@
                 return data;
               });
             });
+          }).then(function(data){
+            releaseEngine(usedInst);
+            return data;
+          }, function(err){
+            releaseEngine(usedInst);
+            throw err;
           });
         }
-        return once().catch(function(err){
+        var result = once().catch(function(err){
           var msg = (err && err.message) || "";
           if(/not ready|SharedArrayBuffer|proxy_main|one command at a time/i.test(msg)){
             return once();
           }
           throw err;
         });
+        // free the used engine (done in once), then prepare a fresh spare
+        return result.then(function(data){ warmUpEngine(); return data; }, function(err){ warmUpEngine(); throw err; });
       }
       function extOf(name){
         var m = name.match(/\.([A-Za-z0-9]{2,5})$/);
         return m ? "." + m[1].toLowerCase() : ".mp4";
       }
+
+      /* ---------- end / reset: free all engine memory and start fresh ---------- */
+      function resetWorkState(){
+        if(state.playing){
+          fgVideo.pause(); bgVideo.pause();
+          state.playing = false; stopSegCheck(); setPlayIcon(); resetFadePreview();
+        }
+        clearResult();
+        if(state.objectUrl && state.objectUrl !== state.origUrl) URL.revokeObjectURL(state.objectUrl);
+        if(state.origUrl) URL.revokeObjectURL(state.origUrl);
+        state.file = null; state.origFile = null; state.origUrl = null; state.objectUrl = null;
+        state.duration = 0; state.start = 0; state.dur = 30;
+        state.cutting = false; state.generating = false; state.scrubbing = false;
+        fileInput.value = "";
+        bgVideo.removeAttribute("src");
+        fgVideo.removeAttribute("src");
+        try{ bgVideo.load(); }catch(e){}
+        try{ fgVideo.load(); }catch(e){}
+        emptyMsg.style.display = "";
+        fileInfo.classList.remove("show");
+        fileNameEl.textContent = "";
+        fileMetaEl.textContent = "";
+        setStatus(loadStatus, "");
+        setStatus(genStatus, "");
+        setStatus(cutStatus, "");
+        progressBox.classList.remove("show");
+        cutProgressBox.classList.remove("show");
+        restoreBtn.style.display = "none";
+        startRange.max = 0;
+        startRange.value = 0;
+        durRange.value = 30;
+        durChips.forEach(function(c){ c.classList.toggle("on", c.getAttribute("data-dur") === "30"); });
+        seekRange.value = 0;
+        nowTc.textContent = "00:00.0";
+        setStepsEnabled(false);
+        refreshTrimUI();
+      }
+      endBtn.addEventListener("click", function(){
+        var msg = (state.cutting || state.generating)
+          ? "変換の途中です。終了すると変換は中断され、エンジンのメモリはすべて消去されます。終了しますか？"
+          : "作業を終了しますか？変換エンジンのメモリをすべて消去して、最初の状態に戻ります。（入力したタイトルや設定は残ります）";
+        if(!window.confirm(msg)) return;
+        endAllEngines();
+        resetWorkState();
+        warmUpEngine();
+        setStatus(loadStatus, "終了しました。メモリを消去しました。新しい動画ファイルを選んでください。", "ok");
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
 
       generateBtn.addEventListener("click", function(){
         if(!state.file || state.generating) return;
